@@ -11,6 +11,7 @@ import pandas as pd
 # Importa i moduli del nostro progetto
 from .import_widget import ImportWidget
 from .transactions_widget import TransactionsWidget
+from .welcome_widget import WelcomeWidget
 
 class MainWindow(QMainWindow):
     """Finestra principale dell'applicazione BarFlow"""
@@ -106,9 +107,11 @@ class MainWindow(QMainWindow):
         """)
         
         nav_items = [
-            ("Importa dati", "import"),
-            ("Transazioni", "transactions"),
-            ("Esporta risultati", "export")
+            ("🏠 Home", "home"),
+            ("📥 Importa dati", "import"),
+            ("💸 Transazioni", "transactions"),
+            ("📊 Analisi", "analysis"),
+            ("📤 Esporta risultati", "export")
         ]
         
         for text, key in nav_items:
@@ -117,7 +120,6 @@ class MainWindow(QMainWindow):
             self.nav_list.addItem(item)
         
         sidebar_layout.addWidget(self.nav_list)
-        sidebar_layout.addStretch()
         
         info_label = QLabel("v2.0.0\n© 2025 BarFlow Simplified")
         info_label.setAlignment(Qt.AlignCenter)
@@ -142,12 +144,17 @@ class MainWindow(QMainWindow):
         content_layout.addWidget(self.stacked_widget)
         
         # Crea i widget delle diverse sezioni
+        self.welcome_widget = WelcomeWidget()
         self.import_widget = ImportWidget()
         self.transactions_widget = TransactionsWidget()
         
         # Aggiungi i widget allo stacked widget
+        self.stacked_widget.addWidget(self.welcome_widget)
         self.stacked_widget.addWidget(self.import_widget)
         self.stacked_widget.addWidget(self.transactions_widget)
+
+        # Imposta il widget di benvenuto come predefinito
+        self.stacked_widget.setCurrentWidget(self.welcome_widget)
         
         parent_layout.addWidget(content_widget)
     
@@ -163,7 +170,8 @@ class MainWindow(QMainWindow):
         """Configura le connessioni dei segnali"""
         self.nav_list.currentRowChanged.connect(self.change_section)
         self.import_widget.data_imported.connect(self.handle_data_import)
-        self.nav_list.setCurrentRow(0)
+        # Deseleziona qualsiasi elemento all'avvio per mostrare la pagina di benvenuto
+        self.nav_list.setCurrentRow(-1)
 
     def change_section(self, index):
         """Cambia sezione in base alla selezione della sidebar"""
@@ -173,7 +181,9 @@ class MainWindow(QMainWindow):
             
         key = item.data(Qt.UserRole)
         
-        if key == "import":
+        if key == "home":
+            self.stacked_widget.setCurrentWidget(self.welcome_widget)
+        elif key == "import":
             self.stacked_widget.setCurrentWidget(self.import_widget)
         elif key == "transactions":
             self.stacked_widget.setCurrentWidget(self.transactions_widget)
@@ -184,10 +194,12 @@ class MainWindow(QMainWindow):
             self.nav_list.blockSignals(True)
             # Trova l'indice della vista corrente e reimpostalo
             current_widget = self.stacked_widget.currentWidget()
-            if current_widget == self.import_widget:
+            if current_widget == self.welcome_widget:
                 self.nav_list.setCurrentRow(0)
-            elif current_widget == self.transactions_widget:
+            elif current_widget == self.import_widget:
                 self.nav_list.setCurrentRow(1)
+            elif current_widget == self.transactions_widget:
+                self.nav_list.setCurrentRow(2)
             self.nav_list.blockSignals(False)
 
 
@@ -198,10 +210,19 @@ class MainWindow(QMainWindow):
             row_with_source['Fonte'] = source_type
             self.transactions_data.append(row_with_source)
         
-        QMessageBox.information(self, "Importazione completata", f"{len(data)} record importati da {source_type}.")
+        # Il popup di successo è ora gestito in ImportWidget
         
-        # Passa alla vista transazioni per mostrare i dati aggiornati
-        self.nav_list.setCurrentRow(1)
+        # Aggiorna la tabella delle transazioni se è la vista corrente
+        if self.stacked_widget.currentWidget() == self.transactions_widget:
+            self.transactions_widget.update_table(self.transactions_data)
+        else:
+            # Passa alla vista transazioni per mostrare i dati aggiornati
+            # Trova l'indice corretto per "transactions"
+            for i in range(self.nav_list.count()):
+                item = self.nav_list.item(i)
+                if item.data(Qt.UserRole) == "transactions":
+                    self.nav_list.setCurrentRow(i)
+                    break
         self.transactions_widget.update_table(self.transactions_data)
 
     def export_results(self):

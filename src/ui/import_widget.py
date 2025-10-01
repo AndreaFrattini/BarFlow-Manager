@@ -2,10 +2,10 @@
 Widget per l'importazione dei dati
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QLabel, 
-                               QMessageBox)
+                               QMessageBox, QFileDialog, QInputDialog)
 from PySide6.QtCore import Qt, Signal
-from datetime import datetime
-import random
+import pandas as pd
+import xml.etree.ElementTree as ET
 
 class ImportWidget(QWidget):
     """Widget per la schermata di importazione dati."""
@@ -26,45 +26,78 @@ class ImportWidget(QWidget):
         title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
         layout.addWidget(title_label)
 
-        btn_fornitori = QPushButton("Fornitori")
+        btn_fornitori = QPushButton("Ordini Fornitori (XLSM)")
         btn_fornitori.setMinimumHeight(50)
-        btn_fornitori.clicked.connect(lambda: self.import_data("Fornitore"))
+        btn_fornitori.clicked.connect(lambda: self.open_file_dialog("Fornitore"))
         layout.addWidget(btn_fornitori)
 
-        btn_pos = QPushButton("Point of Sales (POS)")
+        btn_pos = QPushButton("Transazioni Point of Sales (POS - XLSX)")
         btn_pos.setMinimumHeight(50)
-        btn_pos.clicked.connect(lambda: self.import_data("POS"))
+        btn_pos.clicked.connect(lambda: self.open_file_dialog("POS"))
         layout.addWidget(btn_pos)
 
         btn_manuale = QPushButton("Manuale")
         btn_manuale.setMinimumHeight(50)
-        btn_manuale.clicked.connect(lambda: self.import_data("Manuale"))
+        btn_manuale.clicked.connect(self.import_manuale)
         layout.addWidget(btn_manuale)
 
-    def import_data(self, source_type):
-        """Simula l'importazione di dati e emette un segnale."""
-        
-        if source_type == "Manuale":
-            QMessageBox.information(self, "Importazione Manuale", "Questa funzionalità non è ancora implementata.")
-            return
+    def open_file_dialog(self, source_type):
+        """Apre un QFileDialog per selezionare il file da importare."""
+        file_filter = "Excel Files (*.xlsm)" if source_type == "Fornitore" else "Excel Files (*.xlsx)"
+        file_path, _ = QFileDialog.getOpenFileName(self, f"Seleziona file {source_type}", "", file_filter)
 
-        # Genera dati fittizi
-        transactions = []
-        num_records = random.randint(5, 15)
-        
-        for i in range(num_records):
+        if file_path:
+            self.import_data(source_type, file_path)
+
+    def import_data(self, source_type, file_path):
+        """Legge e processa i dati dal file selezionato."""
+        try:
             if source_type == "Fornitore":
-                description = f"Fattura Fornitore {random.randint(100, 999)}"
-                amount = -random.uniform(50.0, 500.0) # Uscite
-            else: # POS
-                description = f"Transazione POS {random.randint(1000, 9999)}"
-                amount = random.uniform(5.0, 100.0) # Entrate
+                transactions = self.parse_supplier_xlsm(file_path)
+            elif source_type == "POS":
+                transactions = self.parse_pos_xlsx(file_path)
+            else:
+                return
 
+            self.data_imported.emit(source_type, transactions)
+            QMessageBox.information(self, "Importazione Riuscita", 
+                                    f"{len(transactions)} record importati con successo da {file_path}.")
+        except Exception as e:
+            QMessageBox.critical(self, "Errore di Importazione", 
+                                 f"Impossibile importare il file {file_path}.\n\nErrore: {e}")
+
+    def parse_supplier_xlsm(self, file_path):
+        """Esegue il parsing di un file XLSM di ordini fornitore."""
+        df = pd.read_excel(file_path, engine='openpyxl')
+        transactions = []
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+
+        for _, row in df.iterrows():
             transaction = {
-                'transaction_date': datetime.now().strftime('%Y-%m-%d'),
-                'description': description,
-                'amount': f"{amount:.2f}"
+                'transaction_date': pd.to_datetime(row['data_ordine']).strftime('%Y-%m-%d'),
+                'description': f"Acquisto: {row['descrizione_prodotto']}",
+                'amount': f"{-float(row['costo_totale']):.2f}"  # Costo, quindi negativo
             }
             transactions.append(transaction)
-            
-        self.data_imported.emit(source_type, transactions)
+        return transactions
+
+    def parse_pos_xlsx(self, file_path):
+        """Esegue il parsing di un file XLSX di transazioni POS."""
+        df = pd.read_excel(file_path)
+        transactions = []
+        # Assicurati che le colonne abbiano i nomi corretti
+        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
+        
+        for _, row in df.iterrows():
+            transaction = {
+                'transaction_date': pd.to_datetime(row['date']).strftime('%Y-%m-%d'),
+                'description': f"Vendita: {row['product_name']}",
+                'amount': f"{float(row['total_amount']):.2f}" # Vendita, quindi positivo
+            }
+            transactions.append(transaction)
+        return transactions
+
+    def import_manuale(self):
+        """Gestisce il caso dell'importazione manuale."""
+        QMessageBox.information(self, "Importazione Manuale", "Questa funzionalità non è ancora implementata.")
+        return
