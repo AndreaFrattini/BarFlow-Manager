@@ -106,7 +106,8 @@ BarFlow-Manager/
 └── src/                  # Codice sorgente principale
     ├── ui/               # Interfaccia utente
     │   ├── main_window.py           # Finestra principale
-    │   ├── dashboard_widget.py      # Dashboard con metriche
+    │   ├── dashboard_metrics_widget.py  # Widget metriche numeriche
+    │   ├── dashboard_charts_widget.py   # Widget grafici e visualizzazioni
     │   ├── transactions_widget.py   # Gestione transazioni
     │   ├── import_widget.py         # Wizard importazione
     │   ├── reports_widget.py        # Generazione report

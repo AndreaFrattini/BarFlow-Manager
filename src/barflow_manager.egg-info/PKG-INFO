@@ -5,7 +5,6 @@ Summary: BarFlow - Gestione Finanziaria per Bar
 Requires-Python: >=3.8
 Description-Content-Type: text/markdown
 Requires-Dist: lxml>=4.9.0
-Requires-Dist: numpy>=1.24.0
 Requires-Dist: openpyxl>=3.1.0
 Requires-Dist: pandas>=2.0.0
 Requires-Dist: plotly>=5.15.0
@@ -121,7 +120,8 @@ BarFlow-Manager/
 └── src/                  # Codice sorgente principale
     ├── ui/               # Interfaccia utente
     │   ├── main_window.py           # Finestra principale
-    │   ├── dashboard_widget.py      # Dashboard con metriche
+    │   ├── dashboard_metrics_widget.py  # Widget metriche numeriche
+    │   ├── dashboard_charts_widget.py   # Widget grafici e visualizzazioni
     │   ├── transactions_widget.py   # Gestione transazioni
     │   ├── import_widget.py         # Wizard importazione
     │   ├── reports_widget.py        # Generazione report
