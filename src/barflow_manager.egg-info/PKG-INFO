@@ -1,3 +1,18 @@
+Metadata-Version: 2.4
+Name: barflow-manager
+Version: 0.1.0
+Summary: BarFlow - Gestione Finanziaria per Bar
+Requires-Python: >=3.8
+Description-Content-Type: text/markdown
+Requires-Dist: lxml>=4.9.0
+Requires-Dist: numpy>=1.24.0
+Requires-Dist: openpyxl>=3.1.0
+Requires-Dist: pandas>=2.0.0
+Requires-Dist: plotly>=5.15.0
+Requires-Dist: pyinstaller>=5.13.0
+Requires-Dist: pyside6>=6.5.0
+Requires-Dist: xlsxwriter>=3.1.0
+
 # BarFlow - Gestione Finanziaria per Bar
 
 **Versione 1.0.0** | **Stato: Pronta per Testing**
