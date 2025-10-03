@@ -245,32 +245,82 @@ class MainWindow(QMainWindow):
 
     def export_results(self):
         """Esporta i risultati aggregati in un file XLSX"""
+        # Controllo che ci siano dati caricati
         if not self.transactions_data:
-            QMessageBox.warning(self, "Nessun dato", "Non ci sono dati da esportare.")
+            QMessageBox.warning(
+                self, 
+                "Errore - Nessun dato", 
+                "Non ci sono dati da esportare.\nCarica prima dei dati utilizzando la sezione 'Importa dati'."
+            )
             return
 
-        file_path, _ = QFileDialog.getSaveFileName(self, "Salva File", "", "Excel Files (*.xlsx)")
+        # Finestra di dialogo per scegliere dove salvare il file
+        file_path, _ = QFileDialog.getSaveFileName(
+            self, 
+            "Esporta dati - Scegli dove salvare", 
+            "risultati_barflow.xlsx", 
+            "File Excel (*.xlsx)"
+        )
 
         if file_path:
             try:
                 df = pd.DataFrame(self.transactions_data)
                 
-                # Assicurati che la colonna 'IMPORTO' sia numerica
-                df['IMPORTO'] = pd.to_numeric(df['IMPORTO'])
+                # Assicurati che la colonna 'IMPORTO' sia numerica e le date siano formattate correttamente
+                df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
+                df['DATA'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
+                
+                # Rimuovi righe con valori non validi
+                df = df.dropna(subset=['IMPORTO'])
 
-                entrate = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
-                uscite = df[df['IMPORTO'] < 0]['IMPORTO'].sum()
-                guadagno_netto = df['IMPORTO'].sum()
+                # Calcola gli aggregati come nella sezione Analisi
+                total_gains = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
+                total_expenses = abs(df[df['IMPORTO'] < 0]['IMPORTO'].sum())  # Valore assoluto per le spese
+                profit = total_gains - total_expenses
 
-                summary_df = pd.DataFrame({
-                    'Metrica': ['Entrate Totali', 'Uscite Totali', 'Guadagno Netto'],
-                    'Valore': [entrate, uscite, guadagno_netto]
+                # Calcola il periodo di analisi (min e max delle date)
+                min_date = df['DATA'].min()
+                max_date = df['DATA'].max()
+                periodo = f"{min_date.strftime('%d/%m/%Y')} - {max_date.strftime('%d/%m/%Y')}"
+
+                # Crea il foglio "Risultati" con la nuova struttura richiesta
+                risultati_df = pd.DataFrame({
+                    'PERIODO': [periodo],
+                    'TOTALE GUADAGNI': [f"{total_gains:,.2f}"],
+                    'TOTALE SPESE': [f"{total_expenses:,.2f}"],
+                    'UTILE': [f"{profit:,.2f}"]
                 })
 
-                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
-                    summary_df.to_excel(writer, index=False, sheet_name='Riepilogo')
-                    df.to_excel(writer, index=False, sheet_name='Dettaglio Transazioni')
+                # Prepara il foglio "Transazioni" con tutti i dati nello stesso ordine della tabella dell'app
+                # Ordine colonne: ["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"]
+                transazioni_df = df.copy()
+                
+                # Formatta le date per il foglio transazioni
+                transazioni_df['DATA'] = transazioni_df['DATA'].dt.strftime('%d/%m/%Y')
+                
+                # Formatta la colonna importo per il foglio transazioni
+                transazioni_df['IMPORTO'] = transazioni_df['IMPORTO'].apply(lambda x: f"{x:,.2f}" if pd.notna(x) else "0.00")
+                
+                # Riordina le colonne per mantenere lo stesso ordine della tabella nell'app
+                colonne_ordinate = ["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"]
+                transazioni_df = transazioni_df[colonne_ordinate]
 
-                QMessageBox.information(self, "Esportazione completata", f"File salvato con successo in:\n{file_path}")
+                # Esporta in Excel con due fogli
+                with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
+                    # Foglio "Risultati" con gli aggregati
+                    risultati_df.to_excel(writer, index=False, sheet_name='Risultati')
+                    
+                    # Foglio "Transazioni" con tutti i dati
+                    transazioni_df.to_excel(writer, index=False, sheet_name='Transazioni')
+
+                QMessageBox.information(
+                    self, 
+                    "Esportazione completata", 
+                    f"File salvato con successo in:\n{file_path}\n\nIl file contiene:\n• Foglio 'Risultati': aggregati dell'analisi\n• Foglio 'Transazioni': dettaglio completo"
+                )
             except Exception as e:
-                QMessageBox.critical(self, "Errore Esportazione", f"Errore durante il salvataggio del file:\n{e}")
+                QMessageBox.critical(
+                    self, 
+                    "Errore durante l'esportazione", 
+                    f"Si è verificato un errore durante il salvataggio del file:\n\n{str(e)}"
+                )
