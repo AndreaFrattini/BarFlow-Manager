@@ -1,4 +1,3 @@
-
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
@@ -6,6 +5,9 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
+import numpy as np
+from matplotlib import patheffects
+import seaborn as sns
 
 class AnalysisWidget(QWidget):
     """Widget per la sezione di analisi dei dati."""
@@ -24,9 +26,9 @@ class AnalysisWidget(QWidget):
         metrics_layout = QHBoxLayout()
         metrics_layout.setSpacing(20)
         
-        self.total_gains_label = self._create_metric_box("TOTALE GUADAGNI", "0.00 €", "#27AE60")
-        self.total_expenses_label = self._create_metric_box("TOTALE SPESE", "0.00 €", "#C0392B")
-        self.profit_label = self._create_metric_box("UTILE", "0.00 €", "#2980B9")
+        self.total_gains_label = self._create_metric_box("TOTALE ENTRATE", "0.00 €", "#27AE60")
+        self.total_expenses_label = self._create_metric_box("TOTALE USCITE", "0.00 €", "#C0392B")
+        self.profit_label = self._create_metric_box("PROFITTO", "0.00 €", "#2980B9")
         
         metrics_layout.addWidget(self.total_gains_label)
         metrics_layout.addWidget(self.total_expenses_label)
@@ -99,10 +101,32 @@ class AnalysisWidget(QWidget):
         return frame
 
     def _create_chart_canvas(self):
-        """Crea un'area di disegno per un grafico Matplotlib."""
-        fig, ax = plt.subplots()
+        """Crea un'area di disegno per un grafico Matplotlib con stile moderno."""
+        # Imposta lo stile moderno per matplotlib
+        try:
+            plt.style.use('seaborn-v0_8-whitegrid')
+        except:
+            try:
+                plt.style.use('seaborn-whitegrid')
+            except:
+                plt.style.use('default')
+        
+        fig, ax = plt.subplots(figsize=(8, 6))
+        fig.patch.set_facecolor('#FAFAFA')
+        ax.set_facecolor('#FFFFFF')
+        
+        # Rimuovi i bordi superiore e destro per un look più pulito
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#CCCCCC')
+        ax.spines['bottom'].set_color('#CCCCCC')
+        
         canvas = FigureCanvas(fig)
-        canvas.setStyleSheet("background-color: #FFFFFF; border-radius: 10px;")
+        canvas.setStyleSheet("""
+            background-color: #FAFAFA; 
+            border-radius: 15px;
+            border: 1px solid #E0E0E0;
+        """)
         return canvas
 
     def update_data(self, transactions_data):
@@ -147,10 +171,14 @@ class AnalysisWidget(QWidget):
             self._reset_view()
 
     def _update_monthly_chart(self, df):
-        """Aggiorna il grafico a barre mensile."""
+        """Aggiorna il grafico a barre mensile con stile moderno ed elegante."""
         # Pulisci la figura esistente
         self.monthly_chart_canvas.figure.clear()
         ax = self.monthly_chart_canvas.figure.add_subplot(111)
+        
+        # Imposta colore di sfondo
+        self.monthly_chart_canvas.figure.patch.set_facecolor('#FAFAFA')
+        ax.set_facecolor('#FFFFFF')
 
         df['Mese'] = df['DATA'].dt.to_period('M')
         monthly_summary = df.groupby('Mese')['IMPORTO'].agg(
@@ -158,55 +186,217 @@ class AnalysisWidget(QWidget):
             uscite=lambda x: abs(x[x < 0].sum())  # Valore assoluto per le uscite
         ).reset_index()
 
-        monthly_summary['Mese'] = monthly_summary['Mese'].astype(str)
+        # Converti il periodo in datetime per formattazione consistente
+        monthly_summary['Mese_dt'] = monthly_summary['Mese'].dt.to_timestamp()
+        monthly_summary['Mese_label'] = monthly_summary['Mese_dt'].dt.strftime('%b %Y')
 
         if len(monthly_summary) == 0:
-            ax.text(0.5, 0.5, "Nessun dato mensile da visualizzare", ha='center', va='center', transform=ax.transAxes)
+            ax.text(0.5, 0.5, "Nessun dato mensile da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
             self.monthly_chart_canvas.draw()
             return
 
-        bar_width = 0.35
-        index = range(len(monthly_summary['Mese']))
-
-        ax.bar(index, monthly_summary['entrate'], bar_width, label='Entrate', color='#27AE60')
-        ax.bar([i + bar_width for i in index], monthly_summary['uscite'], bar_width, label='Uscite', color='#C0392B')
-
-        ax.set_title('Entrate vs Uscite Mensili', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Importo (€)')
-        ax.set_xticks([i + bar_width / 2 for i in index])
-        ax.set_xticklabels(monthly_summary['Mese'], rotation=45, ha="right")
-        ax.legend()
-        ax.grid(axis='y', linestyle='--', alpha=0.7)
+        # Colori moderni e gradienti
+        colors_entrate = ['#27AE60', '#2ECC71', '#58D68D']  # Verde sfumato
+        colors_uscite = ['#E74C3C', '#EC7063', '#F1948A']   # Rosso sfumato
         
-        self.monthly_chart_canvas.figure.tight_layout()
+        bar_width = 0.35
+        index = np.arange(len(monthly_summary['Mese_label']))
+
+        # Barre con effetti ombra e gradiente
+        bars1 = ax.bar(index - bar_width/2, monthly_summary['entrate'], bar_width, 
+                      label='Entrate', color=colors_entrate[0], alpha=0.9,
+                      edgecolor='white', linewidth=2)
+        bars2 = ax.bar(index + bar_width/2, monthly_summary['uscite'], bar_width, 
+                      label='Uscite', color=colors_uscite[0], alpha=0.9,
+                      edgecolor='white', linewidth=2)
+
+        # Aggiungi valori sopra le barre
+        def add_value_labels(bars, values):
+            for bar, value in zip(bars, values):
+                height = bar.get_height()
+                ax.annotate(f'€{value:,.0f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 5),  # 5 points vertical offset
+                           textcoords="offset points",
+                           ha='center', va='bottom',
+                           fontsize=10, fontweight='bold', color='#333333')
+        
+        add_value_labels(bars1, monthly_summary['entrate'])
+        add_value_labels(bars2, monthly_summary['uscite'])
+
+        # Styling moderno
+        ax.set_title('Entrate vs Uscite Mensili', fontsize=16, fontweight='bold', 
+                    color='#2C3E50', pad=20)
+        ax.set_ylabel('Importo (€)', fontsize=12, color='#34495E', fontweight='bold')
+        ax.set_xlabel('Mese', fontsize=12, color='#34495E', fontweight='bold')
+        
+        ax.set_xticks(index)
+        ax.set_xticklabels(monthly_summary['Mese_label'], rotation=45, ha="right", 
+                          fontsize=11, color='#2C3E50')
+        
+        # Aumenta il margine inferiore per le etichette inclinate
+        plt.subplots_adjust(bottom=0.15)
+        
+        # Legenda in alto a sinistra con dimensioni ulteriormente ridotte
+        legend = ax.legend(loc='upper left', 
+                          frameon=True, fancybox=True, shadow=True, 
+                          fontsize=7, borderpad=0.1, handlelength=0.8, 
+                          handletextpad=0.2, columnspacing=0.3)
+        legend.get_frame().set_facecolor('#F8F9FA')
+        legend.get_frame().set_edgecolor('#BDC3C7')
+        legend.get_frame().set_linewidth(0.5)
+        legend.get_frame().set_alpha(0.9)
+        
+        # Griglia elegante
+        ax.grid(axis='y', linestyle='--', alpha=0.3, color='#BDC3C7')
+        ax.set_axisbelow(True)
+        
+        # Rimuovi bordi superiore e destro
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#BDC3C7')
+        ax.spines['bottom'].set_color('#BDC3C7')
+        
+        # Formattazione assi
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+        ax.tick_params(colors='#2C3E50', which='both')
+        
+        # Aggiusta il layout (rimuove la regolazione per legenda esterna)
+        self.monthly_chart_canvas.figure.subplots_adjust(bottom=0.15)
+        self.monthly_chart_canvas.figure.tight_layout(pad=2.0)
         self.monthly_chart_canvas.draw()
 
     def _update_cumulative_profit_chart(self, df):
-        """Aggiorna il grafico a linee del profitto cumulativo."""
+        """Aggiorna il grafico a linee del profitto cumulativo con stile moderno ed elegante."""
         # Pulisci la figura esistente
         self.cumulative_profit_canvas.figure.clear()
         ax = self.cumulative_profit_canvas.figure.add_subplot(111)
+        
+        # Imposta colore di sfondo
+        self.cumulative_profit_canvas.figure.patch.set_facecolor('#FAFAFA')
+        ax.set_facecolor('#FFFFFF')
 
         if len(df) == 0:
-            ax.text(0.5, 0.5, "Nessun dato da visualizzare", ha='center', va='center', transform=ax.transAxes)
+            ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
             self.cumulative_profit_canvas.draw()
             return
 
         df_sorted = df.sort_values('DATA')
         df_sorted['profitto_cumulativo'] = df_sorted['IMPORTO'].cumsum()
 
-        ax.plot(df_sorted['DATA'], df_sorted['profitto_cumulativo'], marker='o', linestyle='-', color='#2980B9', markersize=4)
+        # Linea principale con gradiente
+        line = ax.plot(df_sorted['DATA'], df_sorted['profitto_cumulativo'], 
+                      linewidth=3, color='#3498DB', alpha=0.9, 
+                      marker='o', markersize=5, markerfacecolor='#2980B9',
+                      markeredgecolor='white', markeredgewidth=1.5,
+                      label='Profitto Cumulativo')
         
-        ax.set_title('Andamento Profitto Cumulativo', fontsize=12, fontweight='bold')
-        ax.set_ylabel('Profitto (€)')
-        ax.grid(True, linestyle='--', alpha=0.7)
+        # Area sotto la curva per effetto visivo con colore dinamico
+        # Usa verde se il valore finale è positivo, rosso se negativo
+        final_value = df_sorted['profitto_cumulativo'].iloc[-1]
+        area_color = '#27AE60' if final_value >= 0 else '#E74C3C'
+        ax.fill_between(df_sorted['DATA'], df_sorted['profitto_cumulativo'], 0, 
+                       alpha=0.2, color=area_color)
         
-        # Formatta le etichette delle date
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%d/%m/%Y'))
-        ax.xaxis.set_major_locator(mdates.MonthLocator())
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right")
-
-        self.cumulative_profit_canvas.figure.tight_layout()
+        # Linea dello zero per riferimento
+        ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=2, alpha=0.7)
+        
+        # Aggiungi valori lungo la linea (ogni N punti per evitare sovraffollamento)
+        total_points = len(df_sorted)
+        step = max(1, total_points // 8)  # Mostra circa 8 etichette massimo
+        
+        for i in range(0, total_points, step):
+            row = df_sorted.iloc[i]
+            value = row['profitto_cumulativo']
+            date = row['DATA']
+            
+            # Posizione dell'etichetta alternata sopra/sotto la linea
+            offset_y = 15 if i % 2 == 0 else -25
+            va = 'bottom' if i % 2 == 0 else 'top'
+            
+            ax.annotate(f'€{value:,.0f}', 
+                       xy=(date, value),
+                       xytext=(0, offset_y), textcoords='offset points',
+                       ha='center', va=va,
+                       fontsize=8, fontweight='bold', color='#34495E',
+                       bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
+                                alpha=0.8, edgecolor='#BDC3C7', linewidth=0.5))
+        
+        # Evidenzia i punti di massimo e minimo
+        max_idx = df_sorted['profitto_cumulativo'].idxmax()
+        min_idx = df_sorted['profitto_cumulativo'].idxmin()
+        
+        max_point = df_sorted.loc[max_idx]
+        min_point = df_sorted.loc[min_idx]
+        
+        # Punto massimo
+        ax.scatter(max_point['DATA'], max_point['profitto_cumulativo'], 
+                  color='#27AE60', s=120, zorder=5, edgecolor='white', linewidth=3)
+        ax.annotate(f'MAX: €{max_point["profitto_cumulativo"]:,.0f}', 
+                   xy=(max_point['DATA'], max_point['profitto_cumulativo']),
+                   xytext=(15, 15), textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.4', facecolor='#27AE60', alpha=0.9),
+                   color='white', fontweight='bold', fontsize=10,
+                   arrowprops=dict(arrowstyle='->', color='#27AE60', lw=2))
+        
+        # Punto minimo
+        ax.scatter(min_point['DATA'], min_point['profitto_cumulativo'], 
+                  color='#E74C3C', s=120, zorder=5, edgecolor='white', linewidth=3)
+        ax.annotate(f'MIN: €{min_point["profitto_cumulativo"]:,.0f}', 
+                   xy=(min_point['DATA'], min_point['profitto_cumulativo']),
+                   xytext=(15, -25), textcoords='offset points',
+                   bbox=dict(boxstyle='round,pad=0.4', facecolor='#E74C3C', alpha=0.9),
+                   color='white', fontweight='bold', fontsize=10,
+                   arrowprops=dict(arrowstyle='->', color='#E74C3C', lw=2))
+        
+        # Styling moderno
+        ax.set_title('Andamento Profitto Cumulativo', fontsize=16, fontweight='bold', 
+                    color='#2C3E50', pad=20)
+        ax.set_ylabel('Profitto (€)', fontsize=12, color='#34495E', fontweight='bold')
+        ax.set_xlabel('Data', fontsize=12, color='#34495E', fontweight='bold')
+        
+        # Griglia elegante
+        ax.grid(True, linestyle='--', alpha=0.3, color='#BDC3C7')
+        ax.set_axisbelow(True)
+        
+        # Rimuovi bordi superiore e destro
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#BDC3C7')
+        ax.spines['bottom'].set_color('#BDC3C7')
+        
+        # Migliora i tick delle date per formato uniforme Gen 2025, Feb 2025, etc.
+        total_days = (df_sorted['DATA'].max() - df_sorted['DATA'].min()).days
+        
+        if total_days <= 31:
+            # Meno di un mese: mostra ogni settimana con formato breve
+            ax.xaxis.set_major_locator(mdates.WeekdayLocator())
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+        elif total_days <= 90:
+            # Meno di 3 mesi: mostra ogni 2 settimane
+            ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
+        else:
+            # Più di 3 mesi: mostra mensilmente con formato uniforme
+            ax.xaxis.set_major_locator(mdates.MonthLocator())
+            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
+        
+        # Inclina le etichette per migliore leggibilità
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", color='#2C3E50')
+        
+        # Formattazione asse Y
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+        ax.tick_params(colors='#2C3E50', which='both')
+        
+        # Aumenta il margine inferiore per le etichette inclinate
+        self.cumulative_profit_canvas.figure.subplots_adjust(bottom=0.15)
+        self.cumulative_profit_canvas.figure.tight_layout(pad=2.0)
         self.cumulative_profit_canvas.draw()
 
     def _reset_view(self):
@@ -223,9 +413,37 @@ class AnalysisWidget(QWidget):
         if profit_value_label:
             profit_value_label.setText("0.00 €")
         
-        # Reset dei grafici
+        # Reset dei grafici con stile moderno
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas]:
             canvas.figure.clear()
+            canvas.figure.patch.set_facecolor('#FAFAFA')
             ax = canvas.figure.add_subplot(111)
-            ax.text(0.5, 0.5, "Nessun dato da visualizzare", ha='center', va='center', transform=ax.transAxes)
+            ax.set_facecolor('#FFFFFF')
+            ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
+            canvas.draw()
+        # Reset delle metriche usando l'objectName
+        gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
+        expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
+        profit_value_label = self.profit_label.findChild(QLabel, "value_label")
+        
+        if gains_value_label:
+            gains_value_label.setText("0.00 €")
+        if expenses_value_label:
+            expenses_value_label.setText("0.00 €")
+        if profit_value_label:
+            profit_value_label.setText("0.00 €")
+        
+        # Reset dei grafici con stile moderno
+        for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas]:
+            canvas.figure.clear()
+            canvas.figure.patch.set_facecolor('#FAFAFA')
+            ax = canvas.figure.add_subplot(111)
+            ax.set_facecolor('#FFFFFF')
+            ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
             canvas.draw()
