@@ -111,7 +111,7 @@ class AnalysisWidget(QWidget):
             except:
                 plt.style.use('default')
         
-        fig, ax = plt.subplots(figsize=(8, 6))
+        fig, ax = plt.subplots(figsize=(10, 7))
         fig.patch.set_facecolor('#FAFAFA')
         ax.set_facecolor('#FFFFFF')
         
@@ -328,33 +328,6 @@ class AnalysisWidget(QWidget):
                        bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
                                 alpha=0.8, edgecolor='#BDC3C7', linewidth=0.5))
         
-        # Evidenzia i punti di massimo e minimo
-        max_idx = df_sorted['profitto_cumulativo'].idxmax()
-        min_idx = df_sorted['profitto_cumulativo'].idxmin()
-        
-        max_point = df_sorted.loc[max_idx]
-        min_point = df_sorted.loc[min_idx]
-        
-        # Punto massimo
-        ax.scatter(max_point['DATA'], max_point['profitto_cumulativo'], 
-                  color='#27AE60', s=120, zorder=5, edgecolor='white', linewidth=3)
-        ax.annotate(f'MAX: €{max_point["profitto_cumulativo"]:,.0f}', 
-                   xy=(max_point['DATA'], max_point['profitto_cumulativo']),
-                   xytext=(15, 15), textcoords='offset points',
-                   bbox=dict(boxstyle='round,pad=0.4', facecolor='#27AE60', alpha=0.9),
-                   color='white', fontweight='bold', fontsize=10,
-                   arrowprops=dict(arrowstyle='->', color='#27AE60', lw=2))
-        
-        # Punto minimo
-        ax.scatter(min_point['DATA'], min_point['profitto_cumulativo'], 
-                  color='#E74C3C', s=120, zorder=5, edgecolor='white', linewidth=3)
-        ax.annotate(f'MIN: €{min_point["profitto_cumulativo"]:,.0f}', 
-                   xy=(min_point['DATA'], min_point['profitto_cumulativo']),
-                   xytext=(15, -25), textcoords='offset points',
-                   bbox=dict(boxstyle='round,pad=0.4', facecolor='#E74C3C', alpha=0.9),
-                   color='white', fontweight='bold', fontsize=10,
-                   arrowprops=dict(arrowstyle='->', color='#E74C3C', lw=2))
-        
         # Styling moderno
         ax.set_title('Andamento Profitto Cumulativo', fontsize=16, fontweight='bold', 
                     color='#2C3E50', pad=20)
@@ -422,6 +395,31 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
+            canvas.draw()
+        # Reset delle metriche usando l'objectName
+        gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
+        expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
+        profit_value_label = self.profit_label.findChild(QLabel, "value_label")
+        
+        if gains_value_label:
+            gains_value_label.setText("0.00 €")
+        if expenses_value_label:
+            expenses_value_label.setText("0.00 €")
+        if profit_value_label:
+            profit_value_label.setText("0.00 €")
+        
+        # Reset dei grafici con stile moderno
+        for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas]:
+            canvas.figure.clear()
+            canvas.figure.patch.set_facecolor('#FAFAFA')
+            ax = canvas.figure.add_subplot(111)
+            ax.set_facecolor('#FFFFFF')
+            ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
+            canvas.draw()
             self._style_empty_chart(ax)
             canvas.draw()
         # Reset delle metriche usando l'objectName
