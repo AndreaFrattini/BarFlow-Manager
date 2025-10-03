@@ -11,6 +11,7 @@ Requires-Dist: plotly>=5.15.0
 Requires-Dist: pyinstaller>=5.13.0
 Requires-Dist: pyside6>=6.5.0
 Requires-Dist: xlsxwriter>=3.1.0
+Requires-Dist: matplotlib>=3.7.0
 
 # BarFlow - Gestione Finanziaria per Bar
 

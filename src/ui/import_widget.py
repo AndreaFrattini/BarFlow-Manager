@@ -1,11 +1,53 @@
 """
 Widget per l'importazione dei dati
 """
-from PySide6.QtWidgets import (QWidget, QVBoxLayout, QPushButton, QLabel, 
-                               QMessageBox, QFileDialog, QInputDialog)
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QDateEdit, QDoubleSpinBox, QDialogButtonBox
+from PySide6.QtCore import Qt, Signal, QDate
 import pandas as pd
 import xml.etree.ElementTree as ET
+
+class ManualInputDialog(QDialog):
+    """Dialog per l'inserimento manuale di una transazione."""
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Inserisci Dati Transazione")
+        
+        self.layout = QFormLayout(self)
+        
+        self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit.setCalendarPopup(True)
+        self.product_edit = QLineEdit()
+        self.supplier_edit = QLineEdit()
+        self.category_edit = QLineEdit()
+        self.quantity_edit = QDoubleSpinBox()
+        self.quantity_edit.setRange(0, 10000)
+        self.price_edit = QDoubleSpinBox()
+        self.price_edit.setRange(0, 1000000)
+        self.price_edit.setDecimals(2)
+        
+        self.layout.addRow("Data:", self.date_edit)
+        self.layout.addRow("Prodotto:", self.product_edit)
+        self.layout.addRow("Fornitore:", self.supplier_edit)
+        self.layout.addRow("Categoria:", self.category_edit)
+        self.layout.addRow("Quantità:", self.quantity_edit)
+        self.layout.addRow("Prezzo:", self.price_edit)
+        
+        self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        self.buttons.accepted.connect(self.accept)
+        self.buttons.rejected.connect(self.reject)
+        
+        self.layout.addWidget(self.buttons)
+
+    def get_data(self):
+        """Restituisce i dati inseriti nel dialogo."""
+        return {
+            'DATA': self.date_edit.date().toString("yyyy-MM-dd"),
+            'PRODOTTO': self.product_edit.text() or None,
+            'FORNITORE': self.supplier_edit.text() or None,
+            'CATEGORIA': self.category_edit.text() or None,
+            'Quantità': self.quantity_edit.value() if self.quantity_edit.value() > 0 else None,
+            'IMPORTO': self.price_edit.value()
+        }
 
 class ImportWidget(QWidget):
     """Widget per la schermata di importazione dati."""
@@ -23,7 +65,7 @@ class ImportWidget(QWidget):
         layout.setSpacing(20)
 
         title_label = QLabel("Seleziona la fonte dei dati da importare")
-        title_label.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: grey;")
         layout.addWidget(title_label)
 
         btn_fornitori = QPushButton("Ordini Fornitori (XLSM)")
@@ -68,15 +110,19 @@ class ImportWidget(QWidget):
 
     def parse_supplier_xlsm(self, file_path):
         """Esegue il parsing di un file XLSM di ordini fornitore."""
-        df = pd.read_excel(file_path, engine='openpyxl')
+        df = pd.read_excel(file_path, engine='openpyxl', sheet_name=0)
         transactions = []
         df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
 
         for _, row in df.iterrows():
+            prezzo_totale = float(row['quantita']) * float(row['costo_unita'])
             transaction = {
-                'transaction_date': pd.to_datetime(row['data_ordine']).strftime('%Y-%m-%d'),
-                'description': f"Acquisto: {row['descrizione_prodotto']}",
-                'amount': f"{-float(row['costo_totale']):.2f}"  # Costo, quindi negativo
+                'DATA': pd.to_datetime(row['data_ordine']).strftime('%Y-%m-%d'),
+                'PRODOTTO': row.get('prodotto'),
+                'FORNITORE': row.get('fornitore'),
+                'CATEGORIA': row.get('categoria'),
+                'QUANTITA\'': row.get('quantita'),
+                'IMPORTO': f"{-prezzo_totale:.2f}"
             }
             transactions.append(transaction)
         return transactions
@@ -85,19 +131,43 @@ class ImportWidget(QWidget):
         """Esegue il parsing di un file XLSX di transazioni POS."""
         df = pd.read_excel(file_path)
         transactions = []
-        # Assicurati che le colonne abbiano i nomi corretti
         df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
         
         for _, row in df.iterrows():
             transaction = {
-                'transaction_date': pd.to_datetime(row['date']).strftime('%Y-%m-%d'),
-                'description': f"Vendita: {row['product_name']}",
-                'amount': f"{float(row['total_amount']):.2f}" # Vendita, quindi positivo
+                'DATA': pd.to_datetime(row['date']).strftime('%Y-%m-%d'),
+                'PRODOTTO': row.get('product_name'),
+                'FORNITORE': None,
+                'CATEGORIA': None,
+                'QUANTITA\'': row.get('quantity'),
+                'IMPORTO': f"{float(row['total_amount']):.2f}"
             }
             transactions.append(transaction)
         return transactions
 
     def import_manuale(self):
         """Gestisce il caso dell'importazione manuale."""
-        QMessageBox.information(self, "Importazione Manuale", "Questa funzionalità non è ancora implementata.")
-        return
+        items = ["Aggiungi spesa", "Aggiungi guadagno"]
+        item, ok = QInputDialog.getItem(self, "Seleziona Tipo", "Scegli il tipo di transazione:", items, 0, False)
+
+        if ok and item:
+            dialog = ManualInputDialog(self)
+            if dialog.exec() == QDialog.Accepted:
+                data = dialog.get_data()
+                
+                importo = data['IMPORTO']
+                if item == "Aggiungi spesa":
+                    importo = -abs(importo)
+
+                transaction = {
+                    'DATA': data['DATA'],
+                    'PRODOTTO': data['PRODOTTO'],
+                    'FORNITORE': data['FORNITORE'],
+                    'CATEGORIA': data['CATEGORIA'],
+                    'QUANTITA\'': data['Quantità'],
+                    'IMPORTO': f"{importo:.2f}"
+                }
+                
+                self.data_imported.emit("Manuale", [transaction])
+                QMessageBox.information(self, "Importazione Riuscita", 
+                                        "Record manuale aggiunto con successo.")

@@ -12,6 +12,7 @@ import pandas as pd
 from .import_widget import ImportWidget
 from .transactions_widget import TransactionsWidget
 from .welcome_widget import WelcomeWidget
+from .analysis_widget import AnalysisWidget
 
 class MainWindow(QMainWindow):
     """Finestra principale dell'applicazione BarFlow"""
@@ -147,11 +148,13 @@ class MainWindow(QMainWindow):
         self.welcome_widget = WelcomeWidget()
         self.import_widget = ImportWidget()
         self.transactions_widget = TransactionsWidget()
+        self.analysis_widget = AnalysisWidget()
         
         # Aggiungi i widget allo stacked widget
         self.stacked_widget.addWidget(self.welcome_widget)
         self.stacked_widget.addWidget(self.import_widget)
         self.stacked_widget.addWidget(self.transactions_widget)
+        self.stacked_widget.addWidget(self.analysis_widget)
 
         # Imposta il widget di benvenuto come predefinito
         self.stacked_widget.setCurrentWidget(self.welcome_widget)
@@ -188,6 +191,9 @@ class MainWindow(QMainWindow):
         elif key == "transactions":
             self.stacked_widget.setCurrentWidget(self.transactions_widget)
             self.transactions_widget.update_table(self.transactions_data)
+        elif key == "analysis":
+            self.stacked_widget.setCurrentWidget(self.analysis_widget)
+            self.analysis_widget.update_data(self.transactions_data)
         elif key == "export":
             self.export_results()
             # Rimani sulla sezione corrente
@@ -200,15 +206,26 @@ class MainWindow(QMainWindow):
                 self.nav_list.setCurrentRow(1)
             elif current_widget == self.transactions_widget:
                 self.nav_list.setCurrentRow(2)
+            elif current_widget == self.analysis_widget:
+                self.nav_list.setCurrentRow(3)
             self.nav_list.blockSignals(False)
 
 
     def handle_data_import(self, source_type, data):
         """Gestisce i dati importati e li aggiunge al dataset principale"""
+        # Mappa i tipi di sorgente ai valori richiesti
+        source_mapping = {
+            "Fornitore": "fornitore",
+            "POS": "pos",
+            "Manuale": "manuale"
+        }
+        
+        sorgente_value = source_mapping.get(source_type, source_type.lower())
+        
         for row in data:
-            row_with_source = row.copy()
-            row_with_source['Fonte'] = source_type
-            self.transactions_data.append(row_with_source)
+            # Aggiungi la colonna SORGENTE al record
+            row['SORGENTE'] = sorgente_value
+            self.transactions_data.append(row)
         
         # Il popup di successo è ora gestito in ImportWidget
         
@@ -224,6 +241,7 @@ class MainWindow(QMainWindow):
                     self.nav_list.setCurrentRow(i)
                     break
         self.transactions_widget.update_table(self.transactions_data)
+        self.analysis_widget.update_data(self.transactions_data)
 
     def export_results(self):
         """Esporta i risultati aggregati in un file XLSX"""
@@ -237,12 +255,12 @@ class MainWindow(QMainWindow):
             try:
                 df = pd.DataFrame(self.transactions_data)
                 
-                # Assicurati che la colonna 'amount' sia numerica
-                df['amount'] = pd.to_numeric(df['amount'])
+                # Assicurati che la colonna 'IMPORTO' sia numerica
+                df['IMPORTO'] = pd.to_numeric(df['IMPORTO'])
 
-                entrate = df[df['amount'] > 0]['amount'].sum()
-                uscite = df[df['amount'] < 0]['amount'].sum()
-                guadagno_netto = df['amount'].sum()
+                entrate = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
+                uscite = df[df['IMPORTO'] < 0]['IMPORTO'].sum()
+                guadagno_netto = df['IMPORTO'].sum()
 
                 summary_df = pd.DataFrame({
                     'Metrica': ['Entrate Totali', 'Uscite Totali', 'Guadagno Netto'],
