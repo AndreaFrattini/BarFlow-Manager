@@ -7,12 +7,14 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                               QFrame, QStackedWidget)
 from PySide6.QtCore import Qt
 import pandas as pd
+from datetime import datetime
 
 # Importa i moduli del nostro progetto
 from .import_widget import ImportWidget
 from .transactions_widget import TransactionsWidget
 from .welcome_widget import WelcomeWidget
 from .analysis_widget import AnalysisWidget
+from .database_manager import DatabaseManager
 
 class MainWindow(QMainWindow):
     """Finestra principale dell'applicazione BarFlow"""
@@ -20,12 +22,18 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         
-        # Inizializza componenti core
-        self.transactions_data = []
+        # Inizializza database manager
+        self.db_manager = DatabaseManager()
+        
+        # Carica transazioni esistenti all'avvio
+        self.transactions_data = self.db_manager.load_all_transactions()
         
         # Inizializza UI
         self.init_ui()
         self.setup_connections()
+        
+        # Aggiorna le viste con i dati storici
+        self._refresh_all_views()
     
     def init_ui(self):
         """Inizializza l'interfaccia utente"""
@@ -112,7 +120,7 @@ class MainWindow(QMainWindow):
             ("📥 Importa dati", "import"),
             ("💸 Transazioni", "transactions"),
             ("📊 Analisi", "analysis"),
-            ("📤 Esporta risultati", "export")
+            (" Esporta risultati", "export")
         ]
         
         for text, key in nav_items:
@@ -173,6 +181,7 @@ class MainWindow(QMainWindow):
         """Configura le connessioni dei segnali"""
         self.nav_list.currentRowChanged.connect(self.change_section)
         self.import_widget.data_imported.connect(self.handle_data_import)
+        self.transactions_widget.save_requested.connect(self.save_and_update_history)
         # Deseleziona qualsiasi elemento all'avvio per mostrare la pagina di benvenuto
         self.nav_list.setCurrentRow(-1)
 
@@ -324,3 +333,41 @@ class MainWindow(QMainWindow):
                     "Errore durante l'esportazione", 
                     f"Si è verificato un errore durante il salvataggio del file:\n\n{str(e)}"
                 )
+    
+    def _refresh_all_views(self):
+        """Aggiorna tutte le viste con i dati correnti."""
+        self.transactions_widget.update_table(self.transactions_data)
+        self.analysis_widget.update_data(self.transactions_data)
+    
+    def save_and_update_history(self):
+        """Salva le transazioni correnti nello storico e aggiorna la vista con tutto lo storico."""
+        if not self.transactions_data:
+            QMessageBox.warning(self, "Nessun dato", 
+                              "Non ci sono transazioni da salvare.")
+            return
+        
+        try:
+            # Prima salva le transazioni correnti
+            saved, duplicates = self.db_manager.save_transactions(
+                self.transactions_data, 
+                file_origin=f"Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            )
+            
+            # Poi carica tutto lo storico aggiornato
+            all_transactions = self.db_manager.load_all_transactions()
+            self.transactions_data = all_transactions
+            
+            # Aggiorna tutte le viste
+            self._refresh_all_views()
+            
+            stats = self.db_manager.get_database_stats()
+            
+            QMessageBox.information(self, "Salvataggio e aggiornamento completati", 
+                f"Salvate {saved} nuove transazioni (saltati {duplicates} duplicati).\n"
+                f"Ora visualizzi {len(all_transactions)} transazioni totali dallo storico.\n"
+                f"Periodo: {stats['date_range'][0]} - {stats['date_range'][1]}\n"
+                f"Dimensione DB: {stats['db_size_mb']} MB")
+            
+        except Exception as e:
+            QMessageBox.critical(self, "Errore", 
+                               f"Errore durante il salvataggio: {e}")

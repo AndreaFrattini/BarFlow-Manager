@@ -2,12 +2,14 @@
 Widget per la visualizzazione delle transazioni
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
-                              QTableWidgetItem, QHeaderView)
-from PySide6.QtCore import Qt
+                              QTableWidgetItem, QHeaderView, QPushButton)
+from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
 class TransactionsWidget(QWidget):
     """Widget per visualizzare le transazioni importate."""
+    
+    save_requested = Signal()  # Segnale emesso quando si clicca il tasto Salva
 
     def __init__(self):
         super().__init__()
@@ -83,6 +85,36 @@ class TransactionsWidget(QWidget):
         
         # Aggiungi il layout orizzontale al layout principale
         main_layout.addLayout(h_layout)
+        
+        # Layout per i pulsanti
+        buttons_layout = QHBoxLayout()
+        buttons_layout.setAlignment(Qt.AlignCenter)
+        
+        # Tasto Salva
+        self.save_button = QPushButton("💾 Salva nello Storico")
+        self.save_button.setFixedWidth(200)
+        self.save_button.setFixedHeight(40)
+        self.save_button.setStyleSheet("""
+            QPushButton {
+                background-color: #27AE60;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #2ECC71;
+            }
+            QPushButton:pressed {
+                background-color: #229954;
+            }
+        """)
+        self.save_button.clicked.connect(self.save_requested.emit)
+        
+        buttons_layout.addWidget(self.save_button)
+        main_layout.addLayout(buttons_layout)
 
     def update_table(self, transactions_data):
         """Aggiorna la tabella con i dati delle transazioni."""

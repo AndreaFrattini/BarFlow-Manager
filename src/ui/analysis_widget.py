@@ -1,4 +1,4 @@
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QTabWidget
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QFont
 import pandas as pd
@@ -8,19 +8,68 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
 from matplotlib import patheffects
 import seaborn as sns
+from .historical_analysis_widget import HistoricalAnalysisWidget
 
 class AnalysisWidget(QWidget):
-    """Widget per la sezione di analisi dei dati."""
+    """Widget per la sezione di analisi dei dati con tab per analisi attuale e storica."""
     
     def __init__(self):
         super().__init__()
         self.init_ui()
 
     def init_ui(self):
-        """Inizializza l'interfaccia utente del widget."""
+        """Inizializza l'interfaccia utente del widget con tab."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(20)
+        main_layout.setSpacing(10)
+
+        # Crea il widget con i tab
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #C0C0C0;
+                border-radius: 5px;
+                background-color: white;
+            }
+            QTabBar::tab {
+                background-color: #E0E0E0;
+                border: 1px solid #C0C0C0;
+                border-bottom-color: #C0C0C0;
+                border-top-left-radius: 4px;
+                border-top-right-radius: 4px;
+                min-width: 8ex;
+                padding: 8px 16px;
+                margin-right: 2px;
+                font-weight: bold;
+            }
+            QTabBar::tab:selected {
+                background-color: white;
+                border-bottom-color: white;
+                border-top: 2px solid #3498DB;
+            }
+            QTabBar::tab:hover {
+                background-color: #F0F0F0;
+            }
+        """)
+
+        # Crea il widget per l'analisi attuale (quello esistente)
+        self.current_analysis_widget = self._create_current_analysis_widget()
+        
+        # Crea il widget per l'analisi storica
+        self.historical_analysis_widget = HistoricalAnalysisWidget()
+        
+        # Aggiungi i tab
+        self.tab_widget.addTab(self.current_analysis_widget, "📊 Analisi Attuale")
+        self.tab_widget.addTab(self.historical_analysis_widget, "📈 Analisi Storico")
+        
+        main_layout.addWidget(self.tab_widget)
+
+    def _create_current_analysis_widget(self):
+        """Crea il widget per l'analisi attuale (contenuto originale)."""
+        widget = QWidget()
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(20)
 
         # Layout per i box delle metriche
         metrics_layout = QHBoxLayout()
@@ -39,7 +88,7 @@ class AnalysisWidget(QWidget):
         metrics_container.setLayout(metrics_layout)
         metrics_container.setFixedHeight(150)
 
-        main_layout.addWidget(metrics_container)
+        layout.addWidget(metrics_container)
 
         # Layout per i grafici
         charts_layout = QHBoxLayout()
@@ -51,7 +100,9 @@ class AnalysisWidget(QWidget):
         charts_layout.addWidget(self.monthly_chart_canvas)
         charts_layout.addWidget(self.cumulative_profit_canvas)
 
-        main_layout.addLayout(charts_layout)
+        layout.addLayout(charts_layout)
+        
+        return widget
 
     def _create_metric_box(self, title, value, color):
         """Crea un box per una metrica specifica."""
@@ -130,7 +181,7 @@ class AnalysisWidget(QWidget):
         return canvas
 
     def update_data(self, transactions_data):
-        """Aggiorna i dati e ricalcola metriche e grafici."""
+        """Aggiorna i dati e ricalcola metriche e grafici per l'analisi attuale."""
         if not transactions_data:
             self._reset_view()
             return
@@ -138,7 +189,7 @@ class AnalysisWidget(QWidget):
         try:
             df = pd.DataFrame(transactions_data)
             df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
-            df['DATA'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
+            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
             
             # Rimuovi righe con valori non validi
             df = df.dropna(subset=['IMPORTO', 'DATA'])
@@ -165,6 +216,9 @@ class AnalysisWidget(QWidget):
 
             # 3. Aggiorna il grafico del profitto cumulativo
             self._update_cumulative_profit_chart(df)
+            
+            # 4. Aggiorna anche l'analisi storica
+            self.historical_analysis_widget.update_data()
             
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati: {e}")
@@ -445,3 +499,17 @@ class AnalysisWidget(QWidget):
                    fontsize=14, color='#666666', weight='bold')
             self._style_empty_chart(ax)
             canvas.draw()
+
+    def _style_empty_chart(self, ax):
+        """Applica stile moderno ai grafici vuoti."""
+        # Rimuovi i bordi superiore e destro per un look più pulito
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#CCCCCC')
+        ax.spines['bottom'].set_color('#CCCCCC')
+        
+        # Rimuovi tick e etichette
+        ax.set_xticks([])
+        ax.set_yticks([])
+        ax.set_xlabel('')
+        ax.set_ylabel('')

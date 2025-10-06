@@ -39,7 +39,7 @@ class WelcomeWidget(QWidget):
         # Partendo dalla directory di questo file, vai indietro di due livelli (ui -> src)
         # e poi accedi alla cartella 'logo'
         base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logo_path = os.path.join(base_path, '..', 'logo', 'MokaMojito logo.png')
+        logo_path = os.path.join(base_path, '..', 'logo', 'logo.png') # MokaMojito
         
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)

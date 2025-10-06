@@ -3,10 +3,10 @@ from datetime import datetime, timedelta
 import random
 
 # --- Configuration ---
-NUM_MONTHS = 2
+NUM_MONTHS = 1
 WEEKS_IN_MONTH = 4
 TOTAL_WEEKS = NUM_MONTHS * WEEKS_IN_MONTH
-START_DATE = datetime(2025, 1, 6)  # Start on a Monday
+START_DATE = datetime(2025, 3, 1)
 
 # --- Data for XLSM (Supplier Orders) ---
 SUPPLIERS = ["Beverage World", "Snack Masters", "Party Supplies Co.", "Fresh Foods Inc."]
@@ -75,8 +75,9 @@ def generate_xlsx_data():
                                                         minutes=random.randint(0, 59))).time()
 
             transactions.append({
-                "date": current_date.strftime("%Y-%m-%d"),
+                "date": current_date.strftime("%Y-%m-%d %H:%M:%S"),
                 "time": transaction_time.strftime("%H:%M:%S"),
+                "datetime": datetime.combine(current_date, transaction_time).strftime("%Y-%m-%d %H:%M:%S"),
                 "product_name": product,
                 "quantity": quantity,
                 "unit_price": f"{final_price:.2f}",
@@ -89,10 +90,10 @@ def generate_xlsx_data():
 if __name__ == "__main__":
     # Generate and save XLSM for supplier orders
     df_orders = generate_supplier_orders_data()
-    df_orders.to_excel("sample_data/ordini_fornitori.xlsm", index=False, engine='openpyxl')
+    df_orders.to_excel(f"sample_data/{START_DATE.strftime('%Y_%m_%d')}_ordini_fornitori.xlsm", index=False, engine='openpyxl')
     print("File 'ordini_fornitori.xlsm' creato con successo.")
 
     # Generate and save XLSX
     df_pos = generate_xlsx_data()
-    df_pos.to_excel("sample_data/transazioni_pos.xlsx", index=False, engine='openpyxl')
+    df_pos.to_excel(f"sample_data/{START_DATE.strftime('%Y_%m_%d')}_transazioni_pos.xlsx", index=False, engine='openpyxl')
     print("File 'transazioni_pos.xlsx' creato con successo.")
