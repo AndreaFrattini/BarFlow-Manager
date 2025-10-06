@@ -8,12 +8,11 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
 from PySide6.QtCore import Qt
 import pandas as pd
 from datetime import datetime
-
-# Importa i moduli del nostro progetto
 from .import_widget import ImportWidget
 from .transactions_widget import TransactionsWidget
 from .welcome_widget import WelcomeWidget
 from .analysis_widget import AnalysisWidget
+from .history_management_widget import HistoryManagementWidget
 from .database_manager import DatabaseManager
 
 class MainWindow(QMainWindow):
@@ -120,6 +119,7 @@ class MainWindow(QMainWindow):
             ("📥 Importa dati", "import"),
             ("💸 Transazioni", "transactions"),
             ("📊 Analisi", "analysis"),
+            ("⚙️ Gestione Dati Storici", "historical_data_management"),
             ("📤 Esporta risultati", "export")
         ]
         
@@ -147,7 +147,7 @@ class MainWindow(QMainWindow):
         """Crea l'area del contenuto principale"""
         content_widget = QWidget()
         content_layout = QVBoxLayout(content_widget)
-        content_layout.setContentsMargins(20, 20, 20, 20)
+        content_layout.setContentsMargins(15, 10, 15, 10)
         
         self.stacked_widget = QStackedWidget()
         content_layout.addWidget(self.stacked_widget)
@@ -157,12 +157,14 @@ class MainWindow(QMainWindow):
         self.import_widget = ImportWidget()
         self.transactions_widget = TransactionsWidget()
         self.analysis_widget = AnalysisWidget()
+        self.history_management_widget = HistoryManagementWidget()
         
         # Aggiungi i widget allo stacked widget
         self.stacked_widget.addWidget(self.welcome_widget)
         self.stacked_widget.addWidget(self.import_widget)
         self.stacked_widget.addWidget(self.transactions_widget)
         self.stacked_widget.addWidget(self.analysis_widget)
+        self.stacked_widget.addWidget(self.history_management_widget)
 
         # Imposta il widget di benvenuto come predefinito
         self.stacked_widget.setCurrentWidget(self.welcome_widget)
@@ -205,6 +207,10 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.analysis_widget)
             # Analisi Attuale usa solo i dati temporanei
             self.analysis_widget.update_data(self.transactions_data)
+        elif key == "historical_data_management":
+            self.stacked_widget.setCurrentWidget(self.history_management_widget)
+            # Carica i dati solo se non sono ancora stati caricati
+            self.history_management_widget.load_data_if_needed()
         elif key == "export":
             self.export_results()
             # Rimani sulla sezione corrente
@@ -219,6 +225,8 @@ class MainWindow(QMainWindow):
                 self.nav_list.setCurrentRow(2)
             elif current_widget == self.analysis_widget:
                 self.nav_list.setCurrentRow(3)
+            elif current_widget == self.history_management_widget:
+                self.nav_list.setCurrentRow(4)
             self.nav_list.blockSignals(False)
 
 

@@ -89,6 +89,7 @@ class TransactionsWidget(QWidget):
         # Layout per i pulsanti
         buttons_layout = QHBoxLayout()
         buttons_layout.setAlignment(Qt.AlignCenter)
+        buttons_layout.setSpacing(20)  # Spazio tra i bottoni
         
         # Tasto Salva
         self.save_button = QPushButton("💾 Salva nello Storico")
@@ -113,7 +114,31 @@ class TransactionsWidget(QWidget):
         """)
         self.save_button.clicked.connect(self.save_requested.emit)
         
+        # Tasto Elimina tabella
+        self.clear_button = QPushButton("🗑️ Elimina Tabella")
+        self.clear_button.setFixedWidth(200)
+        self.clear_button.setFixedHeight(40)
+        self.clear_button.setStyleSheet("""
+            QPushButton {
+                background-color: #E74C3C;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 8px;
+            }
+            QPushButton:hover {
+                background-color: #EC7063;
+            }
+            QPushButton:pressed {
+                background-color: #CB4335;
+            }
+        """)
+        self.clear_button.clicked.connect(self.clear_table)
+        
         buttons_layout.addWidget(self.save_button)
+        buttons_layout.addWidget(self.clear_button)
         main_layout.addLayout(buttons_layout)
 
     def update_table(self, transactions_data):
@@ -157,3 +182,8 @@ class TransactionsWidget(QWidget):
             self.table.setItem(row, 4, categoria_item)
             self.table.setItem(row, 5, quantita_item)
             self.table.setItem(row, 6, importo_item)
+
+    def clear_table(self):
+        """Pulisce la tabella riportandola allo stato iniziale vuoto."""
+        self.table.setRowCount(0)
+        self.table.clearContents()

@@ -20,8 +20,8 @@ class AnalysisWidget(QWidget):
     def init_ui(self):
         """Inizializza l'interfaccia utente del widget con tab."""
         main_layout = QVBoxLayout(self)
-        main_layout.setContentsMargins(10, 10, 10, 10)
-        main_layout.setSpacing(10)
+        main_layout.setContentsMargins(5, 5, 5, 5)
+        main_layout.setSpacing(5)
 
         # Crea il widget con i tab
         self.tab_widget = QTabWidget()
@@ -74,8 +74,8 @@ class AnalysisWidget(QWidget):
         """Crea il widget per l'analisi attuale (contenuto originale)."""
         widget = QWidget()
         layout = QVBoxLayout(widget)
-        layout.setContentsMargins(10, 10, 10, 10)
-        layout.setSpacing(20)
+        layout.setContentsMargins(10, 5, 10, 5)
+        layout.setSpacing(15)
 
         # Layout per i box delle metriche
         metrics_layout = QHBoxLayout()
@@ -92,7 +92,7 @@ class AnalysisWidget(QWidget):
         # Contenitore per i box per limitarne l'altezza
         metrics_container = QWidget()
         metrics_container.setLayout(metrics_layout)
-        metrics_container.setFixedHeight(150)
+        metrics_container.setFixedHeight(60)
 
         layout.addWidget(metrics_container)
 
@@ -131,8 +131,8 @@ class AnalysisWidget(QWidget):
         """)
         
         layout = QVBoxLayout(frame)
-        layout.setContentsMargins(20, 20, 20, 20)  # Aumentato il padding interno
-        layout.setSpacing(10)  # Aumentato lo spazio tra title e value
+        layout.setContentsMargins(5, 5, 5, 5)  # Ridotto il padding interno
+        layout.setSpacing(3)  # Ridotto lo spazio tra title e value
         layout.setAlignment(Qt.AlignCenter)  # Centra il contenuto verticalmente
         
         title_label = QLabel(title)
@@ -140,7 +140,7 @@ class AnalysisWidget(QWidget):
         title_label.setWordWrap(True)  # Permette il wrapping del testo se necessario
         title_label.setStyleSheet("""
             color: white; 
-            font-size: 16px; 
+            font-size: 10px; 
             font-weight: bold;
             margin: 0px;
             padding: 2px;
@@ -151,7 +151,7 @@ class AnalysisWidget(QWidget):
         value_label.setWordWrap(True)  # Permette il wrapping del testo se necessario
         value_label.setStyleSheet("""
             color: white; 
-            font-size: 24px; 
+            font-size: 12px; 
             font-weight: bold;
             margin: 0px;
             padding: 2px;
