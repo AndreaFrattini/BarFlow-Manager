@@ -25,14 +25,14 @@ class MainWindow(QMainWindow):
         # Inizializza database manager
         self.db_manager = DatabaseManager()
         
-        # Carica transazioni esistenti all'avvio
-        self.transactions_data = self.db_manager.load_all_transactions()
+        # Inizializza con dati temporanei vuoti (per tabella Transazioni e Analisi Attuale)
+        self.transactions_data = []  # Dati temporanei caricati dall'utente
         
         # Inizializza UI
         self.init_ui()
         self.setup_connections()
         
-        # Aggiorna le viste con i dati storici
+        # Inizializza le viste vuote
         self._refresh_all_views()
     
     def init_ui(self):
@@ -120,7 +120,7 @@ class MainWindow(QMainWindow):
             ("📥 Importa dati", "import"),
             ("💸 Transazioni", "transactions"),
             ("📊 Analisi", "analysis"),
-            (" Esporta risultati", "export")
+            ("📤 Esporta risultati", "export")
         ]
         
         for text, key in nav_items:
@@ -199,9 +199,11 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.import_widget)
         elif key == "transactions":
             self.stacked_widget.setCurrentWidget(self.transactions_widget)
+            # Mostra sempre solo i dati temporanei nella tabella Transazioni
             self.transactions_widget.update_table(self.transactions_data)
         elif key == "analysis":
             self.stacked_widget.setCurrentWidget(self.analysis_widget)
+            # Analisi Attuale usa solo i dati temporanei
             self.analysis_widget.update_data(self.transactions_data)
         elif key == "export":
             self.export_results()
@@ -340,33 +342,32 @@ class MainWindow(QMainWindow):
         self.analysis_widget.update_data(self.transactions_data)
     
     def save_and_update_history(self):
-        """Salva le transazioni correnti nello storico e aggiorna la vista con tutto lo storico."""
+        """Salva le transazioni temporanee nello storico e svuota la tabella temporanea."""
         if not self.transactions_data:
             QMessageBox.warning(self, "Nessun dato", 
                               "Non ci sono transazioni da salvare.")
             return
         
         try:
-            # Prima salva le transazioni correnti
+            # Salva le transazioni temporanee nel database
             saved, duplicates = self.db_manager.save_transactions(
                 self.transactions_data, 
                 file_origin=f"Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             )
             
-            # Poi carica tutto lo storico aggiornato
-            all_transactions = self.db_manager.load_all_transactions()
-            self.transactions_data = all_transactions
+            # Svuota i dati temporanei dopo il salvataggio
+            self.transactions_data = []
             
-            # Aggiorna tutte le viste
+            # Aggiorna le viste (ora vuote per la tabella temporanea)
             self._refresh_all_views()
             
             stats = self.db_manager.get_database_stats()
             
-            QMessageBox.information(self, "Salvataggio e aggiornamento completati", 
-                f"Salvate {saved} nuove transazioni (saltati {duplicates} duplicati).\n"
-                f"Ora visualizzi {len(all_transactions)} transazioni totali dallo storico.\n"
-                f"Periodo: {stats['date_range'][0]} - {stats['date_range'][1]}\n"
-                f"Dimensione DB: {stats['db_size_mb']} MB")
+            QMessageBox.information(self, "Salvataggio completato", 
+                f"Salvate {saved} nuove transazioni nello storico (saltati {duplicates} duplicati).\n"
+                f"La tabella temporanea è stata svuotata.\n"
+                f"Database storico contiene ora {stats['total_records']} transazioni totali.\n"
+                f"Periodo storico: {stats['date_range'][0]} - {stats['date_range'][1]}")
             
         except Exception as e:
             QMessageBox.critical(self, "Errore", 

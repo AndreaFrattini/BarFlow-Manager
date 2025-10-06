@@ -41,14 +41,17 @@ class AnalysisWidget(QWidget):
                 padding: 8px 16px;
                 margin-right: 2px;
                 font-weight: bold;
+                color: #2C3E50;
             }
             QTabBar::tab:selected {
                 background-color: white;
                 border-bottom-color: white;
                 border-top: 2px solid #3498DB;
+                color: #2C3E50;
             }
             QTabBar::tab:hover {
                 background-color: #F0F0F0;
+                color: #2C3E50;
             }
         """)
 
@@ -61,6 +64,9 @@ class AnalysisWidget(QWidget):
         # Aggiungi i tab
         self.tab_widget.addTab(self.current_analysis_widget, "📊 Analisi Attuale")
         self.tab_widget.addTab(self.historical_analysis_widget, "📈 Analisi Storico")
+        
+        # Connetti il cambio di tab per aggiornare dinamicamente l'analisi storica
+        self.tab_widget.currentChanged.connect(self._on_tab_changed)
         
         main_layout.addWidget(self.tab_widget)
 
@@ -103,6 +109,13 @@ class AnalysisWidget(QWidget):
         layout.addLayout(charts_layout)
         
         return widget
+
+    def _on_tab_changed(self, index):
+        """Gestisce il cambio di tab per aggiornare dinamicamente i dati storici."""
+        # Se viene selezionato il tab "Analisi Storico" (indice 1)
+        if index == 1:
+            # Aggiorna i dati storici caricandoli dal database al momento
+            self.historical_analysis_widget.update_data()
 
     def _create_metric_box(self, title, value, color):
         """Crea un box per una metrica specifica."""
@@ -216,9 +229,6 @@ class AnalysisWidget(QWidget):
 
             # 3. Aggiorna il grafico del profitto cumulativo
             self._update_cumulative_profit_chart(df)
-            
-            # 4. Aggiorna anche l'analisi storica
-            self.historical_analysis_widget.update_data()
             
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati: {e}")

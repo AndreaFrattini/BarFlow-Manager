@@ -103,7 +103,8 @@ class ImportWidget(QWidget):
 
             self.data_imported.emit(source_type, transactions)
             QMessageBox.information(self, "Importazione Riuscita", 
-                                    f"{len(transactions)} record importati con successo da {file_path}.")
+                                    f"{len(transactions)} record importati con successo nella tabella temporanea da {file_path}.\n"
+                                    f"Usa 'Salva nello Storico' per rendere permanenti i dati.")
         except Exception as e:
             QMessageBox.critical(self, "Errore di Importazione", 
                                  f"Impossibile importare il file {file_path}.\n\nErrore: {e}")
@@ -170,4 +171,5 @@ class ImportWidget(QWidget):
                 
                 self.data_imported.emit("Manuale", [transaction])
                 QMessageBox.information(self, "Importazione Riuscita", 
-                                        "Record manuale aggiunto con successo.")
+                                        "Record manuale aggiunto con successo alla tabella temporanea.\n"
+                                        "Usa 'Salva nello Storico' per rendere permanenti i dati.")

@@ -39,8 +39,7 @@ class HistoricalAnalysisWidget(QWidget):
 
         main_layout.addWidget(metrics_container)
         
-        # Aggiorna i dati al caricamento
-        self.update_data()
+        # Non caricare automaticamente i dati - verranno caricati solo quando necessario
 
     def _create_metric_box(self, title, value, color):
         """Crea un box per una metrica specifica."""
