@@ -240,10 +240,12 @@ class MainWindow(QMainWindow):
         }
         
         sorgente_value = source_mapping.get(source_type, source_type.lower())
+        import_timestamp = datetime.now().timestamp()
         
         for row in data:
-            # Aggiungi la colonna SORGENTE al record
+            # Aggiungi la colonna SORGENTE al record e timestamp di importazione
             row['SORGENTE'] = sorgente_value
+            row['_IMPORT_TIMESTAMP'] = import_timestamp
             self.transactions_data.append(row)
         
         # Il popup di successo è ora gestito in ImportWidget
@@ -273,11 +275,15 @@ class MainWindow(QMainWindow):
             )
             return
 
+        # Genera il nome del file con timestamp
+        today = datetime.now().strftime("%Y-%m-%d")
+        default_filename = f"{today}_risultati_barflow.xlsx"
+
         # Finestra di dialogo per scegliere dove salvare il file
         file_path, _ = QFileDialog.getSaveFileName(
             self, 
             "Esporta dati - Scegli dove salvare", 
-            "risultati_barflow.xlsx", 
+            default_filename, 
             "File Excel (*.xlsx)"
         )
 
@@ -285,57 +291,160 @@ class MainWindow(QMainWindow):
             try:
                 df = pd.DataFrame(self.transactions_data)
                 
-                # Assicurati che la colonna 'IMPORTO' sia numerica e le date siano formattate correttamente
+                # Assicurati che la colonna 'IMPORTO' sia numerica
                 df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
-                df['DATA'] = pd.to_datetime(df['DATA'], dayfirst=True, errors='coerce')
                 
-                # Rimuovi righe con valori non validi
+                # Per i dati temporanei, gestisci il formato YYYY-MM-DD specificamente
+                # Prova prima il formato ISO (YYYY-MM-DD) poi altri formati
+                def parse_temp_date(date_str):
+                    if pd.isna(date_str) or str(date_str).strip() == '':
+                        return pd.NaT
+                    
+                    date_str = str(date_str).strip()
+                    
+                    # Prova formato YYYY-MM-DD (tipico dei dati temporanei)
+                    try:
+                        return pd.to_datetime(date_str, format='%Y-%m-%d')
+                    except:
+                        pass
+                    
+                    # Prova formato DD/MM/YYYY
+                    try:
+                        return pd.to_datetime(date_str, format='%d/%m/%Y')
+                    except:
+                        pass
+                    
+                    # Fallback con dayfirst=True
+                    try:
+                        return pd.to_datetime(date_str, dayfirst=True)
+                    except:
+                        return pd.NaT
+                
+                df['DATA_PARSED'] = df['DATA'].apply(parse_temp_date)
+                
+                # Rimuovi righe con valori IMPORTO non validi (mantieni quelle con date mancanti)
                 df = df.dropna(subset=['IMPORTO'])
 
-                # Calcola gli aggregati come nella sezione Analisi
-                total_gains = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
-                total_expenses = abs(df[df['IMPORTO'] < 0]['IMPORTO'].sum())  # Valore assoluto per le spese
-                profit = total_gains - total_expenses
+                # Calcola gli aggregati dei dati temporanei
+                total_gains_temp = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
+                total_expenses_temp = abs(df[df['IMPORTO'] < 0]['IMPORTO'].sum())
+                profit_temp = total_gains_temp - total_expenses_temp
 
-                # Calcola il periodo di analisi (min e max delle date)
-                min_date = df['DATA'].min()
-                max_date = df['DATA'].max()
-                periodo = f"{min_date.strftime('%d/%m/%Y')} - {max_date.strftime('%d/%m/%Y')}"
+                # Calcola il periodo di analisi temporaneo (usa solo date valide)
+                valid_dates_temp = df['DATA_PARSED'].dropna()
+                if len(valid_dates_temp) > 0:
+                    min_date_temp = valid_dates_temp.min()
+                    max_date_temp = valid_dates_temp.max()
+                    periodo_temp = f"{min_date_temp.strftime('%d/%m/%Y')} - {max_date_temp.strftime('%d/%m/%Y')}"
+                else:
+                    periodo_temp = "Date non disponibili"
 
-                # Crea il foglio "Risultati" con la nuova struttura richiesta
-                risultati_df = pd.DataFrame({
-                    'PERIODO': [periodo],
-                    'TOTALE GUADAGNI': [f"{total_gains:,.2f}"],
-                    'TOTALE SPESE': [f"{total_expenses:,.2f}"],
-                    'UTILE': [f"{profit:,.2f}"]
-                })
+                # Carica e calcola i dati storici
+                historical_data = self.db_manager.load_all_transactions()
+                
+                if historical_data:
+                    df_hist = pd.DataFrame(historical_data)
+                    df_hist['IMPORTO'] = pd.to_numeric(df_hist['IMPORTO'], errors='coerce')
+                    df_hist['DATA_PARSED'] = pd.to_datetime(df_hist['DATA'], dayfirst=True, errors='coerce')
+                    df_hist = df_hist.dropna(subset=['IMPORTO'])
+                    
+                    total_gains_hist = df_hist[df_hist['IMPORTO'] > 0]['IMPORTO'].sum()
+                    total_expenses_hist = abs(df_hist[df_hist['IMPORTO'] < 0]['IMPORTO'].sum())
+                    profit_hist = total_gains_hist - total_expenses_hist
+                    
+                    valid_dates_hist = df_hist['DATA_PARSED'].dropna()
+                    if len(valid_dates_hist) > 0:
+                        min_date_hist = valid_dates_hist.min()
+                        max_date_hist = valid_dates_hist.max()
+                        periodo_hist = f"{min_date_hist.strftime('%d/%m/%Y')} - {max_date_hist.strftime('%d/%m/%Y')}"
+                    else:
+                        periodo_hist = "Date non disponibili"
+                else:
+                    total_gains_hist = total_expenses_hist = profit_hist = 0
+                    periodo_hist = "Nessun dato storico"
 
-                # Prepara il foglio "Transazioni" con tutti i dati nello stesso ordine della tabella dell'app
-                # Ordine colonne: ["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"]
+                # Crea il foglio "Risultati" con entrambe le tabelle
+                risultati_data = [
+                    ['DATI TEMPORANEI', '', '', ''],
+                    ['PERIODO', 'TOTALE ENTRATE', 'TOTALE USCITE', 'PROFITTO'],
+                    [periodo_temp, f"{total_gains_temp:,.2f}", f"{total_expenses_temp:,.2f}", f"{profit_temp:,.2f}"],
+                    ['', '', '', ''],  # Riga vuota
+                    ['DATI STORICI', '', '', ''],
+                    ['PERIODO', 'TOTALE ENTRATE', 'TOTALE USCITE', 'PROFITTO'],
+                    [periodo_hist, f"{total_gains_hist:,.2f}", f"{total_expenses_hist:,.2f}", f"{profit_hist:,.2f}"]
+                ]
+                risultati_df = pd.DataFrame(risultati_data)
+
+                # Prepara il foglio "Transazioni" con tutti i dati temporanei
                 transazioni_df = df.copy()
                 
-                # Formatta le date per il foglio transazioni
-                transazioni_df['DATA'] = transazioni_df['DATA'].dt.strftime('%d/%m/%Y')
+                # Formatta le date temporanee: usa DATA_PARSED se disponibile
+                def format_temp_date(row):
+                    if pd.notna(row['DATA_PARSED']):
+                        return row['DATA_PARSED'].strftime('%d-%m-%Y')
+                    else:
+                        # Se la data non è parsabile, prova a mantenerla o segnala problema
+                        original_date = str(row['DATA']) if pd.notna(row['DATA']) else ''
+                        if original_date.strip() == '' or original_date.lower() == 'nan':
+                            return "Data non disponibile"
+                        else:
+                            return f"Data non valida: {original_date}"
                 
-                # Formatta la colonna importo per il foglio transazioni
+                transazioni_df['DATA'] = transazioni_df.apply(format_temp_date, axis=1)
                 transazioni_df['IMPORTO'] = transazioni_df['IMPORTO'].apply(lambda x: f"{x:,.2f}" if pd.notna(x) else "0.00")
                 
-                # Riordina le colonne per mantenere lo stesso ordine della tabella nell'app
+                # Rimuovi colonne temporanee
+                if 'DATA_PARSED' in transazioni_df.columns:
+                    transazioni_df = transazioni_df.drop('DATA_PARSED', axis=1)
+                if '_IMPORT_TIMESTAMP' in transazioni_df.columns:
+                    transazioni_df = transazioni_df.drop('_IMPORT_TIMESTAMP', axis=1)
+                
+                # Riordina le colonne
                 colonne_ordinate = ["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"]
                 transazioni_df = transazioni_df[colonne_ordinate]
 
-                # Esporta in Excel con due fogli
+                # Prepara il foglio "Transazioni Storiche"
+                if historical_data:
+                    transazioni_storiche_df = df_hist.copy()
+                    
+                    # Formatta le date storiche
+                    def format_hist_date(row):
+                        if pd.notna(row['DATA_PARSED']):
+                            return row['DATA_PARSED'].strftime('%d-%m-%Y')
+                        else:
+                            original_date = str(row['DATA']) if pd.notna(row['DATA']) else ''
+                            if original_date.strip() == '' or original_date.lower() == 'nan':
+                                return "Data non disponibile"
+                            else:
+                                return f"Data non valida: {original_date}"
+                    
+                    transazioni_storiche_df['DATA'] = transazioni_storiche_df.apply(format_hist_date, axis=1)
+                    transazioni_storiche_df['IMPORTO'] = transazioni_storiche_df['IMPORTO'].apply(lambda x: f"{x:,.2f}" if pd.notna(x) else "0.00")
+                    
+                    # Rimuovi colonna temporanea
+                    if 'DATA_PARSED' in transazioni_storiche_df.columns:
+                        transazioni_storiche_df = transazioni_storiche_df.drop('DATA_PARSED', axis=1)
+                    
+                    transazioni_storiche_df = transazioni_storiche_df[colonne_ordinate]
+                else:
+                    # Crea un DataFrame vuoto con le colonne corrette
+                    transazioni_storiche_df = pd.DataFrame(columns=colonne_ordinate)
+
+                # Esporta in Excel con tre fogli
                 with pd.ExcelWriter(file_path, engine='openpyxl') as writer:
                     # Foglio "Risultati" con gli aggregati
-                    risultati_df.to_excel(writer, index=False, sheet_name='Risultati')
+                    risultati_df.to_excel(writer, index=False, sheet_name='Risultati', header=False)
                     
-                    # Foglio "Transazioni" con tutti i dati
+                    # Foglio "Transazioni" con tutti i dati temporanei
                     transazioni_df.to_excel(writer, index=False, sheet_name='Transazioni')
+                    
+                    # Foglio "Transazioni Storiche" con tutti i dati storici
+                    transazioni_storiche_df.to_excel(writer, index=False, sheet_name='Transazioni Storiche')
 
                 QMessageBox.information(
                     self, 
                     "Esportazione completata", 
-                    f"File salvato con successo in:\n{file_path}\n\nIl file contiene:\n• Foglio 'Risultati': aggregati dell'analisi\n• Foglio 'Transazioni': dettaglio completo"
+                    f"File salvato con successo in:\n{file_path}\n\nIl file contiene:\n• Foglio 'Risultati': aggregati temporanei e storici\n• Foglio 'Transazioni': dettaglio dati temporanei\n• Foglio 'Transazioni Storiche': dettaglio dati storici"
                 )
             except Exception as e:
                 QMessageBox.critical(

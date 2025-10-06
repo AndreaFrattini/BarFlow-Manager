@@ -227,8 +227,8 @@ class AnalysisWidget(QWidget):
             # 2. Aggiorna il grafico mensile
             self._update_monthly_chart(df)
 
-            # 3. Aggiorna il grafico del profitto cumulativo
-            self._update_cumulative_profit_chart(df)
+            # 3. Aggiorna il grafico della performance giornaliera
+            self._update_daily_performance_chart(df)
             
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati: {e}")
@@ -333,8 +333,8 @@ class AnalysisWidget(QWidget):
         self.monthly_chart_canvas.figure.tight_layout(pad=2.0)
         self.monthly_chart_canvas.draw()
 
-    def _update_cumulative_profit_chart(self, df):
-        """Aggiorna il grafico a linee del profitto cumulativo con stile moderno ed elegante."""
+    def _update_daily_performance_chart(self, df):
+        """Aggiorna il grafico delle performance giornaliere basato sui dati attuali."""
         # Pulisci la figura esistente
         self.cumulative_profit_canvas.figure.clear()
         ax = self.cumulative_profit_canvas.figure.add_subplot(111)
@@ -351,86 +351,112 @@ class AnalysisWidget(QWidget):
             self.cumulative_profit_canvas.draw()
             return
 
-        df_sorted = df.sort_values('DATA')
-        df_sorted['profitto_cumulativo'] = df_sorted['IMPORTO'].cumsum()
+        # Aggiungi il giorno della settimana (0=Lunedì, 6=Domenica)
+        df['DayOfWeek'] = df['DATA'].dt.dayofweek
+        df['DayName'] = df['DATA'].dt.day_name()
 
-        # Linea principale con gradiente
-        line = ax.plot(df_sorted['DATA'], df_sorted['profitto_cumulativo'], 
-                      linewidth=3, color='#3498DB', alpha=0.9, 
-                      marker='o', markersize=5, markerfacecolor='#2980B9',
-                      markeredgecolor='white', markeredgewidth=1.5,
-                      label='Profitto Cumulativo')
+        # Calcola la media delle uscite totali per la linea di riferimento
+        # Considera solo le uscite e calcola la media giornaliera su tutti i giorni con dati
+        uscite_totali = df[df['IMPORTO'] < 0]['IMPORTO'].abs().sum()
+        giorni_unici = len(df['DATA'].dt.date.unique())
+        media_uscite_giornaliera = uscite_totali / giorni_unici if giorni_unici > 0 else 0
+
+        # Filtra solo le entrate (importi positivi) 
+        entrate_df = df[df['IMPORTO'] > 0].copy()
+
+        if len(entrate_df) == 0:
+            ax.text(0.5, 0.5, "Nessuna entrata da visualizzare", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
+            self.cumulative_profit_canvas.draw()
+            return
+
+        # CALCOLO CORRETTO: Somma le entrate per ogni giorno specifico, poi calcola la media per giorno della settimana
+        # 1. Raggruppa per DATA e DayOfWeek e somma le entrate giornaliere
+        entrate_per_giorno = entrate_df.groupby(['DATA', 'DayOfWeek'])['IMPORTO'].sum().reset_index()
         
-        # Area sotto la curva per effetto visivo con colore dinamico
-        # Usa verde se il valore finale è positivo, rosso se negativo
-        final_value = df_sorted['profitto_cumulativo'].iloc[-1]
-        area_color = '#27AE60' if final_value >= 0 else '#E74C3C'
-        ax.fill_between(df_sorted['DATA'], df_sorted['profitto_cumulativo'], 0, 
-                       alpha=0.2, color=area_color)
+        # 2. Escludi lunedì (DayOfWeek = 0) e calcola la media delle entrate giornaliere per giorno della settimana
+        entrate_lavorative = entrate_per_giorno[entrate_per_giorno['DayOfWeek'] != 0]
         
-        # Linea dello zero per riferimento
-        ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=2, alpha=0.7)
+        if len(entrate_lavorative) == 0:
+            ax.text(0.5, 0.5, "Nessuna entrata nei giorni lavorativi", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=14, color='#666666', weight='bold')
+            self._style_empty_chart(ax)
+            self.cumulative_profit_canvas.draw()
+            return
+
+        # 3. Calcola la media delle entrate giornaliere per ogni giorno della settimana
+        giorni_lavorativi = entrate_lavorative.groupby('DayOfWeek')['IMPORTO'].mean().reset_index()
         
-        # Aggiungi valori lungo la linea (ogni N punti per evitare sovraffollamento)
-        total_points = len(df_sorted)
-        step = max(1, total_points // 8)  # Mostra circa 8 etichette massimo
+        # Mappa i numeri dei giorni ai nomi completi
+        giorni_map = {1: 'Martedì', 2: 'Mercoledì', 3: 'Giovedì', 4: 'Venerdì', 5: 'Sabato', 6: 'Domenica'}
+        giorni_lavorativi['DayName'] = giorni_lavorativi['DayOfWeek'].map(giorni_map)
         
-        for i in range(0, total_points, step):
-            row = df_sorted.iloc[i]
-            value = row['profitto_cumulativo']
-            date = row['DATA']
-            
-            # Posizione dell'etichetta alternata sopra/sotto la linea
-            offset_y = 15 if i % 2 == 0 else -25
-            va = 'bottom' if i % 2 == 0 else 'top'
-            
-            ax.annotate(f'€{value:,.0f}', 
-                       xy=(date, value),
-                       xytext=(0, offset_y), textcoords='offset points',
-                       ha='center', va=va,
-                       fontsize=8, fontweight='bold', color='#34495E',
-                       bbox=dict(boxstyle='round,pad=0.2', facecolor='white', 
-                                alpha=0.8, edgecolor='#BDC3C7', linewidth=0.5))
+        # Ordina per giorno della settimana
+        giorni_lavorativi = giorni_lavorativi.sort_values('DayOfWeek')
+
+        # Crea il grafico a barre (colore verde per coerenza con altri grafici)
+        bars = ax.bar(giorni_lavorativi['DayName'], giorni_lavorativi['IMPORTO'], 
+                     color='#27AE60', alpha=0.8, edgecolor='white', linewidth=2)
+
+        # Aggiungi valori sopra le barre
+        for bar, value in zip(bars, giorni_lavorativi['IMPORTO']):
+            height = bar.get_height()
+            ax.annotate(f'€{value:,.0f}',
+                       xy=(bar.get_x() + bar.get_width() / 2, height),
+                       xytext=(0, 5),  # 5 points vertical offset
+                       textcoords="offset points",
+                       ha='center', va='bottom',
+                       fontsize=10, fontweight='bold', color='#333333')
+
+        # Calcola il range appropriato per l'asse Y
+        max_entrate = giorni_lavorativi['IMPORTO'].max()
+        min_entrate = giorni_lavorativi['IMPORTO'].min()
         
+        # Imposta i limiti dell'asse Y per rendere visibili le barre
+        # Usa un range che mostri bene sia le entrate che la linea obiettivo
+        y_max = max(max_entrate * 1.15, media_uscite_giornaliera * 1.1) if media_uscite_giornaliera > 0 else max_entrate * 1.2
+        y_min = min_entrate * 0.9
+        ax.set_ylim(y_min, y_max)
+        
+        # Aggiungi la linea rossa orizzontale per la media uscite
+        if media_uscite_giornaliera > 0:
+            ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='-', 
+                      linewidth=2, alpha=0.8, label=f'Obiettivo: €{media_uscite_giornaliera:,.0f}')
+
         # Styling moderno
-        ax.set_title('Andamento Profitto Cumulativo', fontsize=16, fontweight='bold', 
+        ax.set_title('Performance Media Giornaliera', fontsize=16, fontweight='bold', 
                     color='#2C3E50', pad=20)
-        ax.set_ylabel('Profitto (€)', fontsize=12, color='#34495E', fontweight='bold')
-        ax.set_xlabel('Data', fontsize=12, color='#34495E', fontweight='bold')
+        ax.set_ylabel('Media Entrate Giornaliere (€)', fontsize=12, color='#34495E', fontweight='bold')
+        ax.set_xlabel('Giorno della Settimana', fontsize=12, color='#34495E', fontweight='bold')
+
+        # Formattazione assi
+        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+        ax.tick_params(colors='#2C3E50', which='both')
         
+        # Ruota le etichette dell'asse X
+        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", color='#2C3E50', fontsize=11)
+
         # Griglia elegante
-        ax.grid(True, linestyle='--', alpha=0.3, color='#BDC3C7')
+        ax.grid(axis='y', linestyle='--', alpha=0.3, color='#BDC3C7')
         ax.set_axisbelow(True)
-        
+
         # Rimuovi bordi superiore e destro
         ax.spines['top'].set_visible(False)
         ax.spines['right'].set_visible(False)
         ax.spines['left'].set_color('#BDC3C7')
         ax.spines['bottom'].set_color('#BDC3C7')
-        
-        # Migliora i tick delle date per formato uniforme Gen 2025, Feb 2025, etc.
-        total_days = (df_sorted['DATA'].max() - df_sorted['DATA'].min()).days
-        
-        if total_days <= 31:
-            # Meno di un mese: mostra ogni settimana con formato breve
-            ax.xaxis.set_major_locator(mdates.WeekdayLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
-        elif total_days <= 90:
-            # Meno di 3 mesi: mostra ogni 2 settimane
-            ax.xaxis.set_major_locator(mdates.WeekdayLocator(interval=2))
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%d %b'))
-        else:
-            # Più di 3 mesi: mostra mensilmente con formato uniforme
-            ax.xaxis.set_major_locator(mdates.MonthLocator())
-            ax.xaxis.set_major_formatter(mdates.DateFormatter('%b %Y'))
-        
-        # Inclina le etichette per migliore leggibilità
-        plt.setp(ax.get_xticklabels(), rotation=45, ha="right", color='#2C3E50')
-        
-        # Formattazione asse Y
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
-        ax.tick_params(colors='#2C3E50', which='both')
-        
+
+        # Legenda per la linea obiettivo
+        if media_uscite_giornaliera > 0:
+            legend = ax.legend(loc='upper left', frameon=True, fancybox=True, shadow=True, 
+                             fontsize=8, borderpad=0.1, handlelength=0.8)
+            legend.get_frame().set_facecolor('#F8F9FA')
+            legend.get_frame().set_edgecolor('#BDC3C7')
+            legend.get_frame().set_alpha(0.9)
+
         # Aumenta il margine inferiore per le etichette inclinate
         self.cumulative_profit_canvas.figure.subplots_adjust(bottom=0.15)
         self.cumulative_profit_canvas.figure.tight_layout(pad=2.0)

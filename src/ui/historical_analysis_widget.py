@@ -1,7 +1,7 @@
 """
 Widget per l'analisi dei dati storici dal database.
 """
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QTabWidget
 from PySide6.QtCore import Qt
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -22,7 +22,7 @@ class HistoricalAnalysisWidget(QWidget):
         """Inizializza l'interfaccia utente del widget."""
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 5, 10, 5)
-        main_layout.setSpacing(15)
+        main_layout.setSpacing(3)
 
         # Layout per i box delle metriche (rimpiccioliti)
         metrics_layout = QHBoxLayout()
@@ -43,31 +43,71 @@ class HistoricalAnalysisWidget(QWidget):
 
         main_layout.addWidget(metrics_container)
         
-        # Prima riga di grafici (analisi storica)
-        first_charts_layout = QHBoxLayout()
-        first_charts_layout.setSpacing(15)
-
-        self.monthly_chart_canvas = self._create_chart_canvas()
-        self.cumulative_profit_canvas = self._create_chart_canvas()
-
-        first_charts_layout.addWidget(self.monthly_chart_canvas)
-        first_charts_layout.addWidget(self.cumulative_profit_canvas)
-
-        main_layout.addLayout(first_charts_layout)
+        # Crea il widget con tab
+        self.tab_widget = QTabWidget()
+        self.tab_widget.setStyleSheet("""
+            QTabWidget::pane {
+                border: 1px solid #C0C0C0;
+                background-color: #FAFAFA;
+                border-radius: 5px;
+            }
+            QTabBar::tab {
+                background-color: #E0E0E0;
+                border: 1px solid #C0C0C0;
+                padding: 8px 16px;
+                margin-right: 2px;
+                border-radius: 5px 5px 0px 0px;
+            }
+            QTabBar::tab:selected {
+                background-color: #FAFAFA;
+                border-bottom-color: #FAFAFA;
+            }
+            QTabBar::tab:hover {
+                background-color: #F0F0F0;
+            }
+        """)
         
-        # Seconda riga di grafici (vuoti per ora)
-        second_charts_layout = QHBoxLayout()
-        second_charts_layout.setSpacing(15)
-
-        self.future_chart1_canvas = self._create_chart_canvas()
-        self.future_chart2_canvas = self._create_chart_canvas()
-
-        second_charts_layout.addWidget(self.future_chart1_canvas)
-        second_charts_layout.addWidget(self.future_chart2_canvas)
-
-        main_layout.addLayout(second_charts_layout)
+        # Tab "Entrate vs Uscite"
+        self.historical_tab = QWidget()
+        self._setup_historical_tab()
+        self.tab_widget.addTab(self.historical_tab, "Entrate vs Uscite")
+        
+        # Tab "Andamento Temporale"
+        self.performance_tab = QWidget()
+        self._setup_performance_tab()
+        self.tab_widget.addTab(self.performance_tab, "Andamento Temporale")
+        
+        main_layout.addWidget(self.tab_widget)
         
         # Non caricare automaticamente i dati - verranno caricati solo quando necessario
+
+    def _setup_historical_tab(self):
+        """Configura la tab 'Entrate vs Uscite'."""
+        layout = QHBoxLayout(self.historical_tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+
+        # Grafico Entrate vs Uscite Mensili
+        self.monthly_chart_canvas = self._create_chart_canvas()
+        layout.addWidget(self.monthly_chart_canvas)
+
+        # Grafico Performance Media Giornaliera
+        self.daily_performance_canvas = self._create_chart_canvas()
+        layout.addWidget(self.daily_performance_canvas)
+
+    def _setup_performance_tab(self):
+        """Configura la tab 'Andamento Temporale'."""
+        layout = QVBoxLayout(self.performance_tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+
+        # Grafico Andamento Profitto Cumulativo (in alto)
+        self.cumulative_profit_canvas = self._create_chart_canvas()
+        layout.addWidget(self.cumulative_profit_canvas)
+
+        # Grafico Performance Medie (in basso)
+        self.average_performance_canvas = self._create_chart_canvas()
+        layout.addWidget(self.average_performance_canvas)
 
     def _create_metric_box(self, title, value, color):
         """Crea un box per una metrica specifica."""
@@ -177,12 +217,11 @@ class HistoricalAnalysisWidget(QWidget):
             if profit_value_label:
                 profit_value_label.setText(f"{profit:,.2f} €")
 
-            # Aggiorna i grafici della prima riga
+            # Aggiorna i grafici
             self._update_monthly_chart(df)
             self._update_cumulative_profit_chart(df)
-            
-            # Aggiorna i grafici della seconda riga
-            self._update_empty_charts()
+            self._update_daily_performance_chart()
+            self._update_average_performance_chart()
                 
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati storici: {e}")
@@ -230,6 +269,25 @@ class HistoricalAnalysisWidget(QWidget):
         bars2 = ax.bar(index + bar_width/2, monthly_summary['uscite'], bar_width, 
                       label='Uscite', color=colors_uscite, alpha=0.9,
                       edgecolor='white', linewidth=1)
+
+        # Aggiungi valori sopra le barre
+        for bar, value in zip(bars1, monthly_summary['entrate']):
+            height = bar.get_height()
+            ax.annotate(f'€{value:,.0f}',
+                       xy=(bar.get_x() + bar.get_width() / 2, height),
+                       xytext=(0, 3),  # 3 points vertical offset
+                       textcoords="offset points",
+                       ha='center', va='bottom',
+                       fontsize=8, fontweight='bold', color='#333333')
+        
+        for bar, value in zip(bars2, monthly_summary['uscite']):
+            height = bar.get_height()
+            ax.annotate(f'€{value:,.0f}',
+                       xy=(bar.get_x() + bar.get_width() / 2, height),
+                       xytext=(0, 3),  # 3 points vertical offset
+                       textcoords="offset points",
+                       ha='center', va='bottom',
+                       fontsize=8, fontweight='bold', color='#333333')
 
         # Styling moderno
         ax.set_title('Entrate vs Uscite Mensili (Storico)', fontsize=14, fontweight='bold', 
@@ -294,6 +352,19 @@ class HistoricalAnalysisWidget(QWidget):
                       markeredgecolor='white', markeredgewidth=1,
                       label='Profitto Cumulativo Storico')
         
+        # Aggiungi valori sui punti ogni 5 punti per evitare sovrapposizioni
+        step = max(1, len(df_sorted) // 10)  # Mostra circa 10 valori
+        for i in range(0, len(df_sorted), step):
+            value = df_sorted['profitto_cumulativo'].iloc[i]
+            date = df_sorted['DATA'].iloc[i]
+            ax.annotate(f'€{value:,.0f}',
+                       xy=(date, value),
+                       xytext=(0, 8),  # 8 points vertical offset
+                       textcoords="offset points",
+                       ha='center', va='bottom',
+                       fontsize=7, fontweight='bold', color='#333333',
+                       bbox=dict(boxstyle='round,pad=0.2', facecolor='white', alpha=0.8, edgecolor='none'))
+        
         # Area sotto la curva
         final_value = df_sorted['profitto_cumulativo'].iloc[-1]
         area_color = '#27AE60' if final_value >= 0 else '#E74C3C'
@@ -344,11 +415,11 @@ class HistoricalAnalysisWidget(QWidget):
     def _update_daily_performance_chart(self):
         """Aggiorna il grafico delle performance giornaliere."""
         # Pulisci la figura esistente
-        self.future_chart1_canvas.figure.clear()
-        ax = self.future_chart1_canvas.figure.add_subplot(111)
+        self.daily_performance_canvas.figure.clear()
+        ax = self.daily_performance_canvas.figure.add_subplot(111)
         
         # Imposta colore di sfondo
-        self.future_chart1_canvas.figure.patch.set_facecolor('#FAFAFA')
+        self.daily_performance_canvas.figure.patch.set_facecolor('#FAFAFA')
         ax.set_facecolor('#FFFFFF')
 
         try:
@@ -360,7 +431,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart1_canvas.draw()
+                self.daily_performance_canvas.draw()
                 return
 
             df = pd.DataFrame(historical_data)
@@ -373,7 +444,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart1_canvas.draw()
+                self.daily_performance_canvas.draw()
                 return
 
             # Aggiungi il giorno della settimana (0=Lunedì, 6=Domenica)
@@ -394,7 +465,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart1_canvas.draw()
+                self.daily_performance_canvas.draw()
                 return
 
             # CALCOLO CORRETTO: Somma le entrate per ogni giorno specifico, poi calcola la media per giorno della settimana
@@ -409,7 +480,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart1_canvas.draw()
+                self.daily_performance_canvas.draw()
                 return
 
             # 3. Calcola la media delle entrate giornaliere per ogni giorno della settimana
@@ -425,6 +496,16 @@ class HistoricalAnalysisWidget(QWidget):
             # Crea il grafico a barre (colore verde per coerenza con altri grafici)
             bars = ax.bar(giorni_lavorativi['DayName'], giorni_lavorativi['IMPORTO'], 
                          color='#27AE60', alpha=0.8, edgecolor='white', linewidth=1)
+
+            # Aggiungi valori sopra le barre
+            for bar, value in zip(bars, giorni_lavorativi['IMPORTO']):
+                height = bar.get_height()
+                ax.annotate(f'€{value:,.0f}',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 3),  # 3 points vertical offset
+                           textcoords="offset points",
+                           ha='center', va='bottom',
+                           fontsize=8, fontweight='bold', color='#333333')
 
             # Calcola il range appropriato per l'asse Y
             max_entrate = giorni_lavorativi['IMPORTO'].max()
@@ -442,7 +523,7 @@ class HistoricalAnalysisWidget(QWidget):
                           linewidth=2, alpha=0.7, label=f'Obiettivo: €{media_uscite_giornaliera:,.0f}')
 
             # Styling moderno
-            ax.set_title('Performance Giornaliera', fontsize=14, fontweight='bold', 
+            ax.set_title('Performance Media Giornaliera', fontsize=14, fontweight='bold', 
                         color='#2C3E50', pad=15)
             ax.set_ylabel('Media Entrate Giornaliere (€)', fontsize=10, color='#34495E', fontweight='bold')
             ax.set_xlabel('Giorno della Settimana', fontsize=10, color='#34495E', fontweight='bold')
@@ -466,14 +547,14 @@ class HistoricalAnalysisWidget(QWidget):
 
             # Legenda per la linea obiettivo
             if media_uscite_giornaliera > 0:
-                legend = ax.legend(loc='upper right', frameon=True, fancybox=True, shadow=True, 
+                legend = ax.legend(loc='upper left', frameon=True, fancybox=True, shadow=True, 
                                  fontsize=8, borderpad=0.1, handlelength=0.8)
                 legend.get_frame().set_facecolor('#F8F9FA')
                 legend.get_frame().set_edgecolor('#BDC3C7')
                 legend.get_frame().set_alpha(0.9)
 
-            self.future_chart1_canvas.figure.tight_layout(pad=1.5)
-            self.future_chart1_canvas.draw()
+            self.daily_performance_canvas.figure.tight_layout(pad=1.5)
+            self.daily_performance_canvas.draw()
 
         except Exception as e:
             print(f"Errore nell'aggiornamento del grafico performance giornaliera: {e}")
@@ -481,16 +562,16 @@ class HistoricalAnalysisWidget(QWidget):
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
             self._style_empty_chart(ax)
-            self.future_chart1_canvas.draw()
+            self.daily_performance_canvas.draw()
 
     def _update_average_performance_chart(self):
         """Aggiorna il grafico delle performance medie cumulative."""
         # Pulisci la figura esistente
-        self.future_chart2_canvas.figure.clear()
-        ax = self.future_chart2_canvas.figure.add_subplot(111)
+        self.average_performance_canvas.figure.clear()
+        ax = self.average_performance_canvas.figure.add_subplot(111)
         
         # Imposta colore di sfondo
-        self.future_chart2_canvas.figure.patch.set_facecolor('#FAFAFA')
+        self.average_performance_canvas.figure.patch.set_facecolor('#FAFAFA')
         ax.set_facecolor('#FFFFFF')
 
         try:
@@ -502,7 +583,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart2_canvas.draw()
+                self.average_performance_canvas.draw()
                 return
 
             df = pd.DataFrame(historical_data)
@@ -515,7 +596,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart2_canvas.draw()
+                self.average_performance_canvas.draw()
                 return
 
             # Ottieni l'anno più recente dai dati
@@ -529,7 +610,7 @@ class HistoricalAnalysisWidget(QWidget):
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 self._style_empty_chart(ax)
-                self.future_chart2_canvas.draw()
+                self.average_performance_canvas.draw()
                 return
 
             # Aggiungi colonna mese-anno
@@ -579,6 +660,34 @@ class HistoricalAnalysisWidget(QWidget):
                            markeredgecolor='white', markeredgewidth=1,
                            label='Media Profitti')
             
+            # Aggiungi valori sui punti dell'ultima linea (ogni 2 punti per leggibilità)
+            step = max(1, len(x_pos) // 6)  # Mostra circa 6 valori
+            for i in range(0, len(x_pos), step):
+                # Valori per Media Entrate
+                ax.annotate(f'€{monthly_summary["media_entrate"].iloc[i]:,.0f}',
+                           xy=(x_pos[i], monthly_summary['media_entrate'].iloc[i]),
+                           xytext=(0, 8),  # 8 points vertical offset
+                           textcoords="offset points",
+                           ha='center', va='bottom',
+                           fontsize=6, fontweight='bold', color=color_entrate)
+                
+                # Valori per Media Uscite
+                ax.annotate(f'€{monthly_summary["media_uscite"].iloc[i]:,.0f}',
+                           xy=(x_pos[i], monthly_summary['media_uscite'].iloc[i]),
+                           xytext=(0, -12),  # Offset negativo per posizionare sotto
+                           textcoords="offset points",
+                           ha='center', va='top',
+                           fontsize=6, fontweight='bold', color=color_uscite)
+                
+                # Valori per Media Profitti (solo se valore significativo)
+                if abs(monthly_summary['media_profitti'].iloc[i]) > 50:
+                    ax.annotate(f'€{monthly_summary["media_profitti"].iloc[i]:,.0f}',
+                               xy=(x_pos[i], monthly_summary['media_profitti'].iloc[i]),
+                               xytext=(10, 0),  # Offset orizzontale
+                               textcoords="offset points",
+                               ha='left', va='center',
+                               fontsize=6, fontweight='bold', color=color_profitti)
+            
             # Linea dello zero per riferimento
             ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=1, alpha=0.5)
             
@@ -616,8 +725,8 @@ class HistoricalAnalysisWidget(QWidget):
             ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
             ax.tick_params(colors='#2C3E50', which='both')
             
-            self.future_chart2_canvas.figure.tight_layout(pad=1.5)
-            self.future_chart2_canvas.draw()
+            self.average_performance_canvas.figure.tight_layout(pad=1.5)
+            self.average_performance_canvas.draw()
 
         except Exception as e:
             print(f"Errore nell'aggiornamento del grafico performance medie: {e}")
@@ -625,15 +734,7 @@ class HistoricalAnalysisWidget(QWidget):
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
             self._style_empty_chart(ax)
-            self.future_chart2_canvas.draw()
-
-    def _update_empty_charts(self):
-        """Aggiorna i grafici della seconda riga."""
-        # Primo grafico: Performance giornaliera
-        self._update_daily_performance_chart()
-        
-        # Secondo grafico: Performance medie
-        self._update_average_performance_chart()
+            self.average_performance_canvas.draw()
 
     def _style_empty_chart(self, ax):
         """Applica stile moderno ai grafici vuoti."""
@@ -664,7 +765,7 @@ class HistoricalAnalysisWidget(QWidget):
         
         # Reset di tutti i grafici
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas, 
-                      self.future_chart1_canvas, self.future_chart2_canvas]:
+                      self.daily_performance_canvas, self.average_performance_canvas]:
             canvas.figure.clear()
             canvas.figure.patch.set_facecolor('#FAFAFA')
             ax = canvas.figure.add_subplot(111)

@@ -62,7 +62,7 @@ class TransactionsWidget(QWidget):
                 border-radius: 8px;
             }
             QHeaderView::section {
-                background-color: grey;
+                background-color: #34495E;
                 color: white;
                 padding: 8px;
                 border: none;
@@ -143,9 +143,14 @@ class TransactionsWidget(QWidget):
 
     def update_table(self, transactions_data):
         """Aggiorna la tabella con i dati delle transazioni."""
-        self.table.setRowCount(len(transactions_data))
+        # Ordina i dati per timestamp di importazione decrescente (più recenti per primi)
+        sorted_data = sorted(transactions_data, 
+                           key=lambda x: x.get('_IMPORT_TIMESTAMP', 0), 
+                           reverse=True)
+        
+        self.table.setRowCount(len(sorted_data))
 
-        for row, transaction in enumerate(transactions_data):
+        for row, transaction in enumerate(sorted_data):
             # Crea gli item e imposta allineamento centrato per tutti
             data_item = QTableWidgetItem(transaction.get('DATA', ''))
             data_item.setTextAlignment(Qt.AlignCenter)
