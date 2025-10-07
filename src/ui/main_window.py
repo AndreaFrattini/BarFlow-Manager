@@ -37,7 +37,20 @@ class MainWindow(QMainWindow):
     def init_ui(self):
         """Inizializza l'interfaccia utente"""
         self.setWindowTitle("BarFlow - Gestione Semplificata")
-        self.setGeometry(100, 100, 1200, 800)
+        
+        # Calcola le dimensioni ottimali in base allo schermo
+        from PySide6.QtWidgets import QApplication
+        screen = QApplication.primaryScreen()
+        if screen:
+            screen_geometry = screen.availableGeometry()
+            # Usa l'80% della larghezza e altezza disponibile dello schermo
+            width = min(1200, int(screen_geometry.width() * 0.8))
+            height = min(800, int(screen_geometry.height() * 0.8))
+            self.resize(width, height)
+        else:
+            # Fallback se non riesce a rilevare lo schermo
+            self.resize(1000, 700)
+        
         self.setMinimumSize(800, 600)
         
         # Widget centrale
