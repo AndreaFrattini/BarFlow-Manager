@@ -208,12 +208,13 @@ class HistoryManagementWidget(QWidget):
         """Restituisce lo stile per gli input con i colori della tabella."""
         return """
             QLineEdit, QComboBox {
-                padding: 8px;
+                padding: 10px;
                 border: 1px solid #BDC3C7;
                 border-radius: 6px;
                 font-size: 10px;
                 background-color: #FFFFFF;
                 color: #333333;
+                min-height: 10px;
             }
             QLineEdit:focus, QComboBox:focus {
                 border-color: #3498DB;

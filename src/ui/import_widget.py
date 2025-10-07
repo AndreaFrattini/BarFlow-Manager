@@ -70,16 +70,67 @@ class ImportWidget(QWidget):
 
         btn_fornitori = QPushButton("Ordini Fornitori (XLSM)")
         btn_fornitori.setMinimumHeight(50)
+        btn_fornitori.setStyleSheet("""
+            QPushButton {
+                background-color: #2C3E50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #34495E;
+            }
+            QPushButton:pressed {
+                background-color: #1B2631;
+            }
+        """)
         btn_fornitori.clicked.connect(lambda: self.open_file_dialog("Fornitore"))
         layout.addWidget(btn_fornitori)
 
         btn_pos = QPushButton("Transazioni Point of Sales (POS - XLSX)")
         btn_pos.setMinimumHeight(50)
+        btn_pos.setStyleSheet("""
+            QPushButton {
+                background-color: #2C3E50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #34495E;
+            }
+            QPushButton:pressed {
+                background-color: #1B2631;
+            }
+        """)
         btn_pos.clicked.connect(lambda: self.open_file_dialog("POS"))
         layout.addWidget(btn_pos)
 
         btn_manuale = QPushButton("Manuale")
         btn_manuale.setMinimumHeight(50)
+        btn_manuale.setStyleSheet("""
+            QPushButton {
+                background-color: #2C3E50;
+                color: white;
+                border: none;
+                border-radius: 8px;
+                font-size: 14px;
+                font-weight: bold;
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #34495E;
+            }
+            QPushButton:pressed {
+                background-color: #1B2631;
+            }
+        """)
         btn_manuale.clicked.connect(self.import_manuale)
         layout.addWidget(btn_manuale)
 

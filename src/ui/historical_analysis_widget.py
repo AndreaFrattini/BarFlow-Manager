@@ -54,9 +54,10 @@ class HistoricalAnalysisWidget(QWidget):
             QTabBar::tab {
                 background-color: #E0E0E0;
                 border: 1px solid #C0C0C0;
-                padding: 8px 16px;
+                padding: 4px 12px;
                 margin-right: 2px;
                 border-radius: 5px 5px 0px 0px;
+                font-size: 12px;
             }
             QTabBar::tab:selected {
                 background-color: #FAFAFA;
@@ -167,7 +168,7 @@ class HistoricalAnalysisWidget(QWidget):
             except:
                 plt.style.use('default')
         
-        fig, ax = plt.subplots(figsize=(8, 5))  # Ridotto per avere 4 grafici
+        fig, ax = plt.subplots(figsize=(8, 3))
         fig.patch.set_facecolor('#FAFAFA')
         ax.set_facecolor('#FFFFFF')
         
@@ -290,7 +291,7 @@ class HistoricalAnalysisWidget(QWidget):
                        fontsize=8, fontweight='bold', color='#333333')
 
         # Styling moderno
-        ax.set_title('Entrate vs Uscite Mensili (Storico)', fontsize=14, fontweight='bold', 
+        ax.set_title('Entrate vs Uscite Mensili', fontsize=14, fontweight='bold', 
                     color='#2C3E50', pad=15)
         ax.set_ylabel('Importo (€)', fontsize=10, color='#34495E', fontweight='bold')
         ax.set_xlabel('Mese', fontsize=10, color='#34495E', fontweight='bold')
@@ -375,7 +376,7 @@ class HistoricalAnalysisWidget(QWidget):
         ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=1.5, alpha=0.7)
         
         # Styling moderno
-        ax.set_title('Andamento Profitto Cumulativo (Storico)', fontsize=14, fontweight='bold', 
+        ax.set_title('Andamento Profitto Cumulativo', fontsize=14, fontweight='bold', 
                     color='#2C3E50', pad=15)
         ax.set_ylabel('Profitto (€)', fontsize=10, color='#34495E', fontweight='bold')
         ax.set_xlabel('Data', fontsize=10, color='#34495E', fontweight='bold')
@@ -520,7 +521,7 @@ class HistoricalAnalysisWidget(QWidget):
             # Aggiungi la linea rossa orizzontale per la media uscite
             if media_uscite_giornaliera > 0:
                 ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='-', 
-                          linewidth=2, alpha=0.7, label=f'Obiettivo: €{media_uscite_giornaliera:,.0f}')
+                          linewidth=2, alpha=0.7, label=f'Spesa media giornaliera: €{media_uscite_giornaliera:,.0f}')
 
             # Styling moderno
             ax.set_title('Performance Media Giornaliera', fontsize=14, fontweight='bold', 

@@ -424,7 +424,7 @@ class AnalysisWidget(QWidget):
         # Aggiungi la linea rossa orizzontale per la media uscite
         if media_uscite_giornaliera > 0:
             ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='-', 
-                      linewidth=2, alpha=0.8, label=f'Obiettivo: €{media_uscite_giornaliera:,.0f}')
+                      linewidth=2, alpha=0.8, label=f'Spesa media giornaliera: €{media_uscite_giornaliera:,.0f}')
 
         # Styling moderno
         ax.set_title('Performance Media Giornaliera', fontsize=16, fontweight='bold', 
