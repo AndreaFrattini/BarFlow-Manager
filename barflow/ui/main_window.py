@@ -6,8 +6,12 @@ from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout,
                               QListWidget, QListWidgetItem, 
                               QFrame, QStackedWidget, QApplication)
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 import pandas as pd
 from datetime import datetime
+import os
+import sys
+import platform
 from .import_widget import ImportWidget
 from .transactions_widget import TransactionsWidget
 from .welcome_widget import WelcomeWidget
@@ -20,6 +24,9 @@ class MainWindow(QMainWindow):
     
     def __init__(self):
         super().__init__()
+        
+        # Imposta l'icona della finestra
+        self.set_window_icon()
         
         # Inizializza database manager
         self.db_manager = DatabaseManager()
@@ -387,3 +394,102 @@ class MainWindow(QMainWindow):
         except Exception as e:
             QMessageBox.critical(self, "Errore", 
                                f"Errore durante il salvataggio: {e}")
+    
+    def set_window_icon(self):
+        """Imposta l'icona della finestra per tutte le piattaforme"""
+        icon_filename = self._get_platform_icon_filename()
+        icon_path = None
+        
+        # Percorso base alle icone - gestisce sia ambiente di sviluppo che app pacchettizzata
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        barflow_dir = os.path.dirname(current_dir)
+        
+        # Lista di possibili percorsi da provare in ordine di priorità
+        possible_paths = [
+            # Struttura di sviluppo
+            os.path.join(os.path.dirname(barflow_dir), 'resources', 'icons'),
+            # Struttura app pacchettizzata - risorse accanto al modulo barflow
+            os.path.join(barflow_dir, 'resources', 'icons'),
+            # Struttura Briefcase - risorse nella directory principale dell'app
+            os.path.join(os.path.dirname(os.path.dirname(barflow_dir)), 'resources', 'icons'),
+            # Struttura Briefcase alternativa - risorse nella directory app
+            os.path.join(os.path.dirname(barflow_dir), 'app', 'resources', 'icons'),
+        ]
+        
+        for icons_dir in possible_paths:            
+            if not os.path.exists(icons_dir):
+                continue
+                
+            test_icon_path = os.path.join(icons_dir, icon_filename)
+            if os.path.exists(test_icon_path):
+                icon_path = test_icon_path
+                break
+            else:
+                # Prova formati alternativi
+                alt_icon_path = self._find_available_icon(icons_dir)
+                if alt_icon_path:
+                    icon_path = alt_icon_path
+                    break
+        
+        # Carica l'icona se trovata
+        if icon_path and os.path.exists(icon_path):
+            try:
+                icon = QIcon(icon_path)
+                # Imposta l'icona della finestra (barra del titolo)
+                self.setWindowIcon(icon)
+                # Imposta l'icona dell'applicazione (taskbar)
+                QApplication.instance().setWindowIcon(icon)
+                
+                # Su Windows, imposta anche l'Application User Model ID per una migliore integrazione con la taskbar
+                if platform.system().lower() == "windows":
+                    try:
+                        import ctypes
+                        # Imposta l'Application User Model ID per Windows
+                        app_id = 'BarFlowTeam.BarFlow.GestioneFinanziaria.1.0'
+                        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+                    except Exception as e:
+                        print(f"Avviso: Impossibile impostare Application User Model ID: {e}")
+                
+                print(f"✓ Icona impostata correttamente per finestra e taskbar.")
+            except Exception as e:
+                print(f"✗ Errore durante il caricamento dell'icona: {e}")
+        else:
+            print(f"✗ Nessuna icona trovata per il formato: {icon_filename}")
+    
+    def _get_platform_icon_filename(self):
+        """Restituisce il nome del file icona appropriato per la piattaforma corrente"""
+        system = platform.system().lower()
+        
+        if system == "windows":
+            return "icon.ico"
+        elif system == "darwin":  # macOS
+            return "icon.icns"
+        else:  # Linux e altre piattaforme Unix
+            return "icon.png"
+    
+    def _find_available_icon(self, icons_dir):
+        """Cerca un'icona disponibile come fallback"""
+        # Lista di priorità per i formati di icona
+        fallback_formats = ["icon.png", "icon.ico", "icon.icns"]
+        
+        for icon_file in fallback_formats:
+            icon_path = os.path.join(icons_dir, icon_file)
+            if os.path.exists(icon_path):
+                return icon_path
+        
+        # Se non trova nessuna icona specifica, prova a cercare qualsiasi file immagine
+        if os.path.exists(icons_dir):
+            for file in os.listdir(icons_dir):
+                if file.lower().endswith(('.png', '.ico', '.icns', '.svg')):
+                    return os.path.join(icons_dir, file)
+        
+        return None
+    
+    def _get_platform_info(self):
+        """Metodo di utilità per ottenere informazioni sulla piattaforma (opzionale)"""
+        return {
+            'system': platform.system(),
+            'release': platform.release(),
+            'machine': platform.machine(),
+            'python_version': sys.version
+        }
