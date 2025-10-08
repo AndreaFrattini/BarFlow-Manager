@@ -198,8 +198,28 @@ class HistoricalAnalysisWidget(QWidget):
 
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
-            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
+            
+            # Gestione robusta delle date - supporta diversi formati
+            # Prima prova il formato con secondi
+            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
+            
+            # Se ci sono valori NaT, prova il formato senza secondi
+            if df['DATA'].isna().any():
+                mask_nat = df['DATA'].isna()
+                original_data = pd.DataFrame(historical_data)['DATA']
+                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], format='%Y-%m-%d', errors='coerce')
+            
+            # Se ci sono ancora valori NaT, prova parsing automatico
+            if df['DATA'].isna().any():
+                mask_nat = df['DATA'].isna()
+                original_data = pd.DataFrame(historical_data)['DATA']
+                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], errors='coerce')
+            
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
+
+            if len(df) == 0:
+                self._reset_view()
+                return
 
             # Calcola le metriche
             total_gains = df[df['IMPORTO NETTO'] > 0]['IMPORTO NETTO'].sum()
@@ -437,7 +457,23 @@ class HistoricalAnalysisWidget(QWidget):
 
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
-            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
+            
+            # Parsing delle date più robusto
+            def parse_date(date_str):
+                if pd.isna(date_str):
+                    return pd.NaT
+                try:
+                    # Prova prima con formato datetime completo
+                    return pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S')
+                except:
+                    try:
+                        # Poi con formato solo data
+                        return pd.to_datetime(date_str, format='%Y-%m-%d')
+                    except:
+                        # Infine lascia che pandas provi a interpretare automaticamente
+                        return pd.to_datetime(date_str, errors='coerce')
+            
+            df['DATA'] = df['DATA'].apply(parse_date)
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
@@ -589,7 +625,23 @@ class HistoricalAnalysisWidget(QWidget):
 
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
-            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
+            
+            # Parsing delle date più robusto
+            def parse_date(date_str):
+                if pd.isna(date_str):
+                    return pd.NaT
+                try:
+                    # Prova prima con formato datetime completo
+                    return pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S')
+                except:
+                    try:
+                        # Poi con formato solo data
+                        return pd.to_datetime(date_str, format='%Y-%m-%d')
+                    except:
+                        # Infine lascia che pandas provi a interpretare automaticamente
+                        return pd.to_datetime(date_str, errors='coerce')
+            
+            df['DATA'] = df['DATA'].apply(parse_date)
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
