@@ -36,10 +36,10 @@ class WelcomeWidget(QWidget):
         logo_label.setAlignment(Qt.AlignCenter)
         
         # Costruisci il percorso del logo in modo robusto
-        # Partendo dalla directory di questo file, vai indietro di due livelli (ui -> src)
-        # e poi accedi alla cartella 'logo'
-        base_path = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        logo_path = os.path.join(base_path, '..', 'resources/logo', 'logo.png')
+        # Partendo dal file corrente (__file__), vai alla directory barflow e poi a resources/logo
+        current_file_dir = os.path.dirname(os.path.abspath(__file__))  # barflow/ui
+        barflow_dir = os.path.dirname(current_file_dir)  # barflow
+        logo_path = os.path.join(barflow_dir, 'resources', 'logo', 'logo.png')
         
         if os.path.exists(logo_path):
             pixmap = QPixmap(logo_path)
