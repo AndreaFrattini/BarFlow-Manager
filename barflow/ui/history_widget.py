@@ -1,6 +1,5 @@
 from PySide6.QtWidgets import *
-from PySide6.QtCore import Qt, QDate
-import pandas as pd
+from PySide6.QtCore import QDate
 
 class HistoryWidget(QWidget):
     """Widget per gestire lo storico delle transazioni."""

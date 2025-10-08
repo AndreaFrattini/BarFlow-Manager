@@ -4,12 +4,12 @@ Widget per la gestione dei dati storici dal database.
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
                               QTableWidgetItem, QHeaderView, QPushButton, QLabel,
                               QLineEdit, QFormLayout, QGroupBox, QMessageBox,
-                              QComboBox, QFrame)
+                              QComboBox)
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QColor
 import sqlite3
 from pathlib import Path
-from .database_manager import DatabaseManager
+from barflow.data.db_manager import DatabaseManager
 
 class HistoryManagementWidget(QWidget):
     """Widget per visualizzare e gestire le transazioni storiche."""

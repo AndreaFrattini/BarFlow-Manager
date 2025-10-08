@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
-from .database_manager import DatabaseManager
+from barflow.data.db_manager import DatabaseManager
 
 class HistoricalAnalysisWidget(QWidget):
     """Widget per l'analisi dei dati storici."""

@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
 """
-BarFlow - Entry point principale per l'applicazione packaggiata
+BarFlow - Entry point principale per l'applicazione
 """
 import sys
 import logging
+from pathlib import Path
 
 # Configura logging
 logging.basicConfig(
@@ -27,7 +28,7 @@ def main():
         app = QApplication(sys.argv)
         app.setApplicationName("BarFlow")
         app.setApplicationVersion("1.0.0")
-        app.setOrganizationName("BarFlow Team")
+        app.setOrganizationName("Andrea Frattini")
         app.setStyle("Fusion")
         
         # Crea e mostra la finestra principale

@@ -1,13 +1,9 @@
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QHBoxLayout, QLabel, QFrame, QTabWidget
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QFont
 import pandas as pd
 import matplotlib.pyplot as plt
-import matplotlib.dates as mdates
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
-from matplotlib import patheffects
-import seaborn as sns
 from .historical_analysis_widget import HistoricalAnalysisWidget
 
 class AnalysisWidget(QWidget):

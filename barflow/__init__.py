@@ -9,3 +9,8 @@ __description__ = "Gestione finanziaria per bar e ristoranti"
 from .ui.main_window import MainWindow
 
 __all__ = ['MainWindow']
+
+def main():
+    """Entry point principale per briefcase"""
+    from .main import main as main_func
+    main_func()

@@ -4,7 +4,7 @@ Finestra principale dell'applicazione BarFlow
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                               QHBoxLayout, QLabel, QMessageBox, QFileDialog,
                               QListWidget, QListWidgetItem, 
-                              QFrame, QStackedWidget)
+                              QFrame, QStackedWidget, QApplication)
 from PySide6.QtCore import Qt
 import pandas as pd
 from datetime import datetime
@@ -13,7 +13,7 @@ from .transactions_widget import TransactionsWidget
 from .welcome_widget import WelcomeWidget
 from .analysis_widget import AnalysisWidget
 from .history_management_widget import HistoryManagementWidget
-from .database_manager import DatabaseManager
+from barflow.data.db_manager import DatabaseManager
 
 class MainWindow(QMainWindow):
     """Finestra principale dell'applicazione BarFlow"""
@@ -39,7 +39,6 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("BarFlow - Gestione Semplificata")
         
         # Calcola le dimensioni ottimali in base allo schermo
-        from PySide6.QtWidgets import QApplication
         screen = QApplication.primaryScreen()
         if screen:
             screen_geometry = screen.availableGeometry()

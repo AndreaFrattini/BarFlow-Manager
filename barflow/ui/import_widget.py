@@ -4,7 +4,6 @@ Widget per l'importazione dei dati
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QDateEdit, QDoubleSpinBox, QDialogButtonBox
 from PySide6.QtCore import Qt, Signal, QDate
 import pandas as pd
-import xml.etree.ElementTree as ET
 
 class ManualInputDialog(QDialog):
     """Dialog per l'inserimento manuale di una transazione."""

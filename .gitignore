@@ -1,3 +1,50 @@
+# Environments
 .venv/
-*.pyc
+.env
+venv/
+ENV/
+uv.lock
+
+# Python
 __pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.pyc
+
+# Build e Packaging
+build/
+dist/
+*.egg-info/
+*.egg
+barflow.dist-info
+
+# Briefcase
+logs/
+
+# Dati locali/sviluppo
+historical_data/
+output_data/
+sample_data/
+
+# Lock files (opzionale, vedi sotto)
+uv.lock
+
+# File temporanei
+briefcase.txt
+.python-version
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Log files
+*.log
