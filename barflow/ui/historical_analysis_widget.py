@@ -246,7 +246,13 @@ class HistoricalAnalysisWidget(QWidget):
                 
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati storici: {e}")
+            import traceback
+            traceback.print_exc()
+            # Non fare crash dell'app, solo resetta la vista
             self._reset_view()
+            
+            # Opzionalmente, mostra un messaggio di errore negli stessi grafici
+            self._show_error_in_charts("Errore nel caricamento dati storici")
 
     def _update_monthly_chart(self, df):
         """Aggiorna il grafico a barre mensile storico."""
@@ -802,6 +808,20 @@ class HistoricalAnalysisWidget(QWidget):
         ax.set_yticks([])
         ax.set_xlabel('')
         ax.set_ylabel('')
+
+    def _show_error_in_charts(self, error_message):
+        """Mostra un messaggio di errore in tutti i grafici."""
+        for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas, 
+                      self.daily_performance_canvas, self.average_performance_canvas]:
+            canvas.figure.clear()
+            canvas.figure.patch.set_facecolor('#FAFAFA')
+            ax = canvas.figure.add_subplot(111)
+            ax.set_facecolor('#FFFFFF')
+            ax.text(0.5, 0.5, error_message, 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, color='#E74C3C', weight='bold')
+            self._style_empty_chart(ax)
+            canvas.draw()
 
     def _reset_view(self):
         """Resetta la vista quando non ci sono dati."""

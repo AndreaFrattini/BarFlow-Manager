@@ -120,35 +120,122 @@ class DatabaseManager:
     def load_all_transactions(self):
         """Carica tutte le transazioni dal database."""
         with sqlite3.connect(self.db_path) as conn:
-            df = pd.read_sql_query("""
-                SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
-                       numero_fornitore as `NUMERO FORNITORE`, 
-                       numero_operazione_pos as `NUMERO OPERAZIONE POS`,
-                       importo_lordo_pos as `IMPORTO LORDO POS`,
-                       commissione_pos as `COMMISSIONE POS`,
-                       importo_netto as `IMPORTO NETTO`
+            # Prima controlla quali colonne esistono nella tabella
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(transactions)")
+            columns_info = cursor.fetchall()
+            existing_columns = [col[1] for col in columns_info]
+            
+            # Costruisci la query dinamicamente basandoti sulle colonne esistenti
+            select_clauses = [
+                "data as DATA",
+                "sorgente as SORGENTE", 
+                "fornitore as FORNITORE"
+            ]
+            
+            # Aggiungi colonne opzionali solo se esistono
+            optional_columns = [
+                ("numero_fornitore", "NUMERO FORNITORE"),
+                ("numero_operazione_pos", "NUMERO OPERAZIONE POS"),
+                ("importo_lordo_pos", "IMPORTO LORDO POS"),
+                ("commissione_pos", "COMMISSIONE POS")
+            ]
+            
+            for db_col, alias in optional_columns:
+                if db_col in existing_columns:
+                    select_clauses.append(f"{db_col} as `{alias}`")
+                else:
+                    # Aggiungi NULL come valore di default per colonne mancanti
+                    select_clauses.append(f"NULL as `{alias}`")
+            
+            # La colonna importo_netto deve sempre esistere
+            select_clauses.append("importo_netto as `IMPORTO NETTO`")
+            
+            query = f"""
+                SELECT {', '.join(select_clauses)}
                 FROM transactions 
                 ORDER BY data DESC
-            """, conn)
-        
-        return df.to_dict('records')
+            """
+            
+            try:
+                df = pd.read_sql_query(query, conn)
+                return df.to_dict('records')
+            except Exception as e:
+                logger.error(f"Errore nel caricamento transazioni: {e}")
+                # Fallback: carica solo le colonne essenziali
+                fallback_query = """
+                    SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
+                           importo_netto as `IMPORTO NETTO`,
+                           NULL as `NUMERO FORNITORE`,
+                           NULL as `NUMERO OPERAZIONE POS`,
+                           NULL as `IMPORTO LORDO POS`,
+                           NULL as `COMMISSIONE POS`
+                    FROM transactions 
+                    ORDER BY data DESC
+                """
+                df = pd.read_sql_query(fallback_query, conn)
+                return df.to_dict('records')
     
     def load_transactions_by_period(self, start_date, end_date):
         """Carica transazioni per un periodo specifico."""
         with sqlite3.connect(self.db_path) as conn:
-            df = pd.read_sql_query("""
-                SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
-                       numero_fornitore as `NUMERO FORNITORE`, 
-                       numero_operazione_pos as `NUMERO OPERAZIONE POS`,
-                       importo_lordo_pos as `IMPORTO LORDO POS`,
-                       commissione_pos as `COMMISSIONE POS`,
-                       importo_netto as `IMPORTO NETTO`
+            # Prima controlla quali colonne esistono nella tabella
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(transactions)")
+            columns_info = cursor.fetchall()
+            existing_columns = [col[1] for col in columns_info]
+            
+            # Costruisci la query dinamicamente basandoti sulle colonne esistenti
+            select_clauses = [
+                "data as DATA",
+                "sorgente as SORGENTE", 
+                "fornitore as FORNITORE"
+            ]
+            
+            # Aggiungi colonne opzionali solo se esistono
+            optional_columns = [
+                ("numero_fornitore", "NUMERO FORNITORE"),
+                ("numero_operazione_pos", "NUMERO OPERAZIONE POS"),
+                ("importo_lordo_pos", "IMPORTO LORDO POS"),
+                ("commissione_pos", "COMMISSIONE POS")
+            ]
+            
+            for db_col, alias in optional_columns:
+                if db_col in existing_columns:
+                    select_clauses.append(f"{db_col} as `{alias}`")
+                else:
+                    # Aggiungi NULL come valore di default per colonne mancanti
+                    select_clauses.append(f"NULL as `{alias}`")
+            
+            # La colonna importo_netto deve sempre esistere
+            select_clauses.append("importo_netto as `IMPORTO NETTO`")
+            
+            query = f"""
+                SELECT {', '.join(select_clauses)}
                 FROM transactions 
                 WHERE data BETWEEN ? AND ?
                 ORDER BY data DESC
-            """, conn, params=(start_date, end_date))
-        
-        return df.to_dict('records')
+            """
+            
+            try:
+                df = pd.read_sql_query(query, conn, params=(start_date, end_date))
+                return df.to_dict('records')
+            except Exception as e:
+                logger.error(f"Errore nel caricamento transazioni per periodo: {e}")
+                # Fallback: carica solo le colonne essenziali
+                fallback_query = """
+                    SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
+                           importo_netto as `IMPORTO NETTO`,
+                           NULL as `NUMERO FORNITORE`,
+                           NULL as `NUMERO OPERAZIONE POS`,
+                           NULL as `IMPORTO LORDO POS`,
+                           NULL as `COMMISSIONE POS`
+                    FROM transactions 
+                    WHERE data BETWEEN ? AND ?
+                    ORDER BY data DESC
+                """
+                df = pd.read_sql_query(fallback_query, conn, params=(start_date, end_date))
+                return df.to_dict('records')
     
     def get_database_stats(self):
         """Ottieni statistiche del database."""

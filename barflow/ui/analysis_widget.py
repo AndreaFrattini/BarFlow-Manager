@@ -110,8 +110,14 @@ class AnalysisWidget(QWidget):
         """Gestisce il cambio di tab per aggiornare dinamicamente i dati storici."""
         # Se viene selezionato il tab "Analisi Storico" (indice 1)
         if index == 1:
-            # Aggiorna i dati storici caricandoli dal database al momento
-            self.historical_analysis_widget.update_data()
+            try:
+                # Aggiorna i dati storici caricandoli dal database al momento
+                self.historical_analysis_widget.update_data()
+            except Exception as e:
+                print(f"Errore durante il caricamento dei dati storici: {e}")
+                import traceback
+                traceback.print_exc()
+                # Non fare crash dell'app, l'errore è già gestito nel widget storico
 
     def _create_metric_box(self, title, value, color):
         """Crea un box per una metrica specifica."""
@@ -453,31 +459,6 @@ class AnalysisWidget(QWidget):
         if media_uscite_giornaliera > 0:
             ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='--', 
                       linewidth=2, alpha=0.8, label=f'Obiettivo Pareggio: €{media_uscite_giornaliera:,.0f}')
-        
-        # Identifica il giorno migliore e peggiore per business intelligence
-        giorno_migliore = performance_settimanale.loc[performance_settimanale['IMPORTO NETTO'].idxmax()]
-        giorno_peggiore = performance_settimanale.loc[performance_settimanale['IMPORTO NETTO'].idxmin()]
-        
-        # Aggiungi annotazioni per evidenziare insights
-        if len(performance_settimanale) > 1:  # Solo se ci sono più giorni
-            # Evidenzia il giorno migliore con una freccia verde
-            max_idx = performance_settimanale['IMPORTO NETTO'].idxmax()
-            ax.annotate('Migliore', 
-                       xy=(max_idx, giorno_migliore['IMPORTO NETTO']),
-                       xytext=(10, 20), textcoords='offset points',
-                       bbox=dict(boxstyle='round,pad=0.3', fc='#27AE60', alpha=0.7),
-                       arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'),
-                       fontsize=8, color='white', fontweight='bold')
-            
-            # Evidenzia il giorno peggiore con una freccia arancione
-            min_idx = performance_settimanale['IMPORTO NETTO'].idxmin()
-            if min_idx != max_idx:  # Solo se non è lo stesso giorno
-                ax.annotate('Da Migliorare', 
-                           xy=(min_idx, giorno_peggiore['IMPORTO NETTO']),
-                           xytext=(10, -30), textcoords='offset points',
-                           bbox=dict(boxstyle='round,pad=0.3', fc='#F39C12', alpha=0.7),
-                           arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'),
-                           fontsize=8, color='white', fontweight='bold')
 
         # Styling moderno
         ax.set_title('Performance Media per Giorno della Settimana', fontsize=16, fontweight='bold', 
