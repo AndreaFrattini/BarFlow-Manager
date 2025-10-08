@@ -56,11 +56,12 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     data TEXT NOT NULL,
                     sorgente TEXT NOT NULL,
-                    prodotto TEXT,
                     fornitore TEXT,
-                    categoria TEXT,
-                    quantita REAL,
-                    importo REAL NOT NULL,
+                    numero_fornitore TEXT,
+                    numero_operazione_pos TEXT,
+                    importo_lordo_pos REAL,
+                    commissione_pos REAL,
+                    importo_netto REAL NOT NULL,
                     hash_record TEXT UNIQUE,
                     data_inserimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     file_origine TEXT
@@ -79,7 +80,7 @@ class DatabaseManager:
     
     def _generate_record_hash(self, record):
         """Genera un hash univoco per il record per evitare duplicati."""
-        key = f"{record['DATA']}{record['SORGENTE']}{record['PRODOTTO']}{record['IMPORTO']}"
+        key = f"{record['DATA']}{record['SORGENTE']}{record.get('FORNITORE', '')}{record.get('NUMERO FORNITORE', '')}{record.get('NUMERO OPERAZIONE POS', '')}{record['IMPORTO NETTO']}"
         return hashlib.md5(key.encode()).hexdigest()
     
     def save_transactions(self, transactions_data, file_origin=None):
@@ -94,16 +95,18 @@ class DatabaseManager:
                 try:
                     conn.execute("""
                         INSERT INTO transactions 
-                        (data, sorgente, prodotto, fornitore, categoria, quantita, importo, hash_record, file_origine)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        (data, sorgente, fornitore, numero_fornitore, numero_operazione_pos, 
+                         importo_lordo_pos, commissione_pos, importo_netto, hash_record, file_origine)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         record['DATA'],
                         record['SORGENTE'],
-                        record.get('PRODOTTO'),
                         record.get('FORNITORE'),
-                        record.get('CATEGORIA'),
-                        record.get("QUANTITA'"),
-                        float(record['IMPORTO']),
+                        record.get('NUMERO FORNITORE'),
+                        record.get('NUMERO OPERAZIONE POS'),
+                        record.get('IMPORTO LORDO POS'),
+                        record.get('COMMISSIONE POS'),
+                        float(record['IMPORTO NETTO']),
                         record_hash,
                         file_origin
                     ))
@@ -118,9 +121,12 @@ class DatabaseManager:
         """Carica tutte le transazioni dal database."""
         with sqlite3.connect(self.db_path) as conn:
             df = pd.read_sql_query("""
-                SELECT data as DATA, sorgente as SORGENTE, prodotto as PRODOTTO, 
-                       fornitore as FORNITORE, categoria as CATEGORIA, 
-                       quantita as `QUANTITA'`, importo as IMPORTO
+                SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
+                       numero_fornitore as `NUMERO FORNITORE`, 
+                       numero_operazione_pos as `NUMERO OPERAZIONE POS`,
+                       importo_lordo_pos as `IMPORTO LORDO POS`,
+                       commissione_pos as `COMMISSIONE POS`,
+                       importo_netto as `IMPORTO NETTO`
                 FROM transactions 
                 ORDER BY data DESC
             """, conn)
@@ -131,9 +137,12 @@ class DatabaseManager:
         """Carica transazioni per un periodo specifico."""
         with sqlite3.connect(self.db_path) as conn:
             df = pd.read_sql_query("""
-                SELECT data as DATA, sorgente as SORGENTE, prodotto as PRODOTTO, 
-                       fornitore as FORNITORE, categoria as CATEGORIA, 
-                       quantita as `QUANTITA'`, importo as IMPORTO
+                SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
+                       numero_fornitore as `NUMERO FORNITORE`, 
+                       numero_operazione_pos as `NUMERO OPERAZIONE POS`,
+                       importo_lordo_pos as `IMPORTO LORDO POS`,
+                       commissione_pos as `COMMISSIONE POS`,
+                       importo_netto as `IMPORTO NETTO`
                 FROM transactions 
                 WHERE data BETWEEN ? AND ?
                 ORDER BY data DESC

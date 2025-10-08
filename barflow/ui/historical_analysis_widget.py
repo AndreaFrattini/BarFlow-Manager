@@ -197,13 +197,13 @@ class HistoricalAnalysisWidget(QWidget):
                 return
 
             df = pd.DataFrame(historical_data)
-            df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
+            df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
-            df = df.dropna(subset=['IMPORTO', 'DATA'])
+            df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             # Calcola le metriche
-            total_gains = df[df['IMPORTO'] > 0]['IMPORTO'].sum()
-            total_expenses = abs(df[df['IMPORTO'] < 0]['IMPORTO'].sum())
+            total_gains = df[df['IMPORTO NETTO'] > 0]['IMPORTO NETTO'].sum()
+            total_expenses = abs(df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].sum())
             profit = total_gains - total_expenses
 
             # Aggiorna i label
@@ -239,7 +239,7 @@ class HistoricalAnalysisWidget(QWidget):
         ax.set_facecolor('#FFFFFF')
 
         df['Mese'] = df['DATA'].dt.to_period('M')
-        monthly_summary = df.groupby('Mese')['IMPORTO'].agg(
+        monthly_summary = df.groupby('Mese')['IMPORTO NETTO'].agg(
             entrate=lambda x: x[x > 0].sum(),
             uscite=lambda x: abs(x[x < 0].sum())
         ).reset_index()
@@ -293,7 +293,7 @@ class HistoricalAnalysisWidget(QWidget):
         # Styling moderno
         ax.set_title('Entrate vs Uscite Mensili', fontsize=14, fontweight='bold', 
                     color='#2C3E50', pad=15)
-        ax.set_ylabel('Importo (€)', fontsize=10, color='#34495E', fontweight='bold')
+        ax.set_ylabel('IMPORTO NETTO (€)', fontsize=10, color='#34495E', fontweight='bold')
         ax.set_xlabel('Mese', fontsize=10, color='#34495E', fontweight='bold')
         
         ax.set_xticks(index)
@@ -344,7 +344,7 @@ class HistoricalAnalysisWidget(QWidget):
             return
 
         df_sorted = df.sort_values('DATA')
-        df_sorted['profitto_cumulativo'] = df_sorted['IMPORTO'].cumsum()
+        df_sorted['profitto_cumulativo'] = df_sorted['IMPORTO NETTO'].cumsum()
 
         # Linea principale
         line = ax.plot(df_sorted['DATA'], df_sorted['profitto_cumulativo'], 
@@ -436,9 +436,9 @@ class HistoricalAnalysisWidget(QWidget):
                 return
 
             df = pd.DataFrame(historical_data)
-            df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
+            df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
-            df = df.dropna(subset=['IMPORTO', 'DATA'])
+            df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
                 ax.text(0.5, 0.5, "Nessun dato valido da visualizzare", 
@@ -454,12 +454,12 @@ class HistoricalAnalysisWidget(QWidget):
 
             # Calcola la media delle uscite totali per la linea di riferimento
             # Considera solo le uscite e calcola la media giornaliera su tutti i giorni con dati
-            uscite_totali = df[df['IMPORTO'] < 0]['IMPORTO'].abs().sum()
+            uscite_totali = df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].abs().sum()
             giorni_unici = len(df['DATA'].dt.date.unique())
             media_uscite_giornaliera = uscite_totali / giorni_unici if giorni_unici > 0 else 0
 
             # Filtra solo le entrate (importi positivi) 
-            entrate_df = df[df['IMPORTO'] > 0].copy()
+            entrate_df = df[df['IMPORTO NETTO'] > 0].copy()
 
             if len(entrate_df) == 0:
                 ax.text(0.5, 0.5, "Nessuna entrata da visualizzare", 
@@ -471,7 +471,7 @@ class HistoricalAnalysisWidget(QWidget):
 
             # CALCOLO CORRETTO: Somma le entrate per ogni giorno specifico, poi calcola la media per giorno della settimana
             # 1. Raggruppa per DATA e DayOfWeek e somma le entrate giornaliere
-            entrate_per_giorno = entrate_df.groupby(['DATA', 'DayOfWeek'])['IMPORTO'].sum().reset_index()
+            entrate_per_giorno = entrate_df.groupby(['DATA', 'DayOfWeek'])['IMPORTO NETTO'].sum().reset_index()
             
             # 2. Escludi lunedì (DayOfWeek = 0) e calcola la media delle entrate giornaliere per giorno della settimana
             entrate_lavorative = entrate_per_giorno[entrate_per_giorno['DayOfWeek'] != 0]
@@ -485,7 +485,7 @@ class HistoricalAnalysisWidget(QWidget):
                 return
 
             # 3. Calcola la media delle entrate giornaliere per ogni giorno della settimana
-            giorni_lavorativi = entrate_lavorative.groupby('DayOfWeek')['IMPORTO'].mean().reset_index()
+            giorni_lavorativi = entrate_lavorative.groupby('DayOfWeek')['IMPORTO NETTO'].mean().reset_index()
             
             # Mappa i numeri dei giorni ai nomi completi
             giorni_map = {1: 'Martedì', 2: 'Mercoledì', 3: 'Giovedì', 4: 'Venerdì', 5: 'Sabato', 6: 'Domenica'}
@@ -495,11 +495,11 @@ class HistoricalAnalysisWidget(QWidget):
             giorni_lavorativi = giorni_lavorativi.sort_values('DayOfWeek')
 
             # Crea il grafico a barre (colore verde per coerenza con altri grafici)
-            bars = ax.bar(giorni_lavorativi['DayName'], giorni_lavorativi['IMPORTO'], 
+            bars = ax.bar(giorni_lavorativi['DayName'], giorni_lavorativi['IMPORTO NETTO'], 
                          color='#27AE60', alpha=0.8, edgecolor='white', linewidth=1)
 
             # Aggiungi valori sopra le barre
-            for bar, value in zip(bars, giorni_lavorativi['IMPORTO']):
+            for bar, value in zip(bars, giorni_lavorativi['IMPORTO NETTO']):
                 height = bar.get_height()
                 ax.annotate(f'€{value:,.0f}',
                            xy=(bar.get_x() + bar.get_width() / 2, height),
@@ -509,8 +509,8 @@ class HistoricalAnalysisWidget(QWidget):
                            fontsize=8, fontweight='bold', color='#333333')
 
             # Calcola il range appropriato per l'asse Y
-            max_entrate = giorni_lavorativi['IMPORTO'].max()
-            min_entrate = giorni_lavorativi['IMPORTO'].min()
+            max_entrate = giorni_lavorativi['IMPORTO NETTO'].max()
+            min_entrate = giorni_lavorativi['IMPORTO NETTO'].min()
             
             # Imposta i limiti dell'asse Y per rendere visibili le barre
             # Usa un range che mostri bene sia le entrate che la linea obiettivo
@@ -588,9 +588,9 @@ class HistoricalAnalysisWidget(QWidget):
                 return
 
             df = pd.DataFrame(historical_data)
-            df['IMPORTO'] = pd.to_numeric(df['IMPORTO'], errors='coerce')
+            df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d', errors='coerce')
-            df = df.dropna(subset=['IMPORTO', 'DATA'])
+            df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
                 ax.text(0.5, 0.5, "Nessun dato valido da visualizzare", 
@@ -618,7 +618,7 @@ class HistoricalAnalysisWidget(QWidget):
             df_year['Mese'] = df_year['DATA'].dt.to_period('M')
             
             # Raggruppa per mese e calcola entrate, uscite e profitti mensili
-            monthly_summary = df_year.groupby('Mese')['IMPORTO'].agg([
+            monthly_summary = df_year.groupby('Mese')['IMPORTO NETTO'].agg([
                 ('entrate_mensili', lambda x: x[x > 0].sum()),
                 ('uscite_mensili', lambda x: abs(x[x < 0].sum())),
                 ('profitto_mensile', 'sum')
@@ -695,7 +695,7 @@ class HistoricalAnalysisWidget(QWidget):
             # Styling moderno
             ax.set_title(f'Performance Medie {latest_year}', fontsize=14, fontweight='bold', 
                         color='#2C3E50', pad=15)
-            ax.set_ylabel('Importo Medio (€)', fontsize=10, color='#34495E', fontweight='bold')
+            ax.set_ylabel('IMPORTO NETTO Medio (€)', fontsize=10, color='#34495E', fontweight='bold')
             ax.set_xlabel('Mese', fontsize=10, color='#34495E', fontweight='bold')
             
             # Imposta le etichette dell'asse X

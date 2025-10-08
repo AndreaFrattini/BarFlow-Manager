@@ -1,8 +1,8 @@
 """
 Widget per l'importazione dei dati
 """
-from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QDateEdit, QDoubleSpinBox, QDialogButtonBox
-from PySide6.QtCore import Qt, Signal, QDate
+from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel, QPushButton, QFileDialog, QMessageBox, QInputDialog, QDialog, QFormLayout, QLineEdit, QDateEdit, QDoubleSpinBox, QDialogButtonBox, QDateTimeEdit
+from PySide6.QtCore import Qt, Signal, QDate, QDateTime
 import pandas as pd
 
 class ManualInputDialog(QDialog):
@@ -13,23 +13,30 @@ class ManualInputDialog(QDialog):
         
         self.layout = QFormLayout(self)
         
-        self.date_edit = QDateEdit(QDate.currentDate())
+        self.date_edit = QDateTimeEdit(QDateTime.currentDateTime())
         self.date_edit.setCalendarPopup(True)
-        self.product_edit = QLineEdit()
+        self.date_edit.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
+        
         self.supplier_edit = QLineEdit()
-        self.category_edit = QLineEdit()
-        self.quantity_edit = QDoubleSpinBox()
-        self.quantity_edit.setRange(0, 10000)
-        self.price_edit = QDoubleSpinBox()
-        self.price_edit.setRange(0, 1000000)
-        self.price_edit.setDecimals(2)
+        self.supplier_number_edit = QLineEdit()
+        self.pos_operation_edit = QLineEdit()
+        self.pos_gross_amount_edit = QDoubleSpinBox()
+        self.pos_gross_amount_edit.setRange(0, 1000000)
+        self.pos_gross_amount_edit.setDecimals(2)
+        self.pos_commission_edit = QDoubleSpinBox()
+        self.pos_commission_edit.setRange(0, 1000000)
+        self.pos_commission_edit.setDecimals(2)
+        self.net_amount_edit = QDoubleSpinBox()
+        self.net_amount_edit.setRange(-1000000, 1000000)
+        self.net_amount_edit.setDecimals(2)
         
         self.layout.addRow("Data:", self.date_edit)
-        self.layout.addRow("Prodotto:", self.product_edit)
         self.layout.addRow("Fornitore:", self.supplier_edit)
-        self.layout.addRow("Categoria:", self.category_edit)
-        self.layout.addRow("Quantità:", self.quantity_edit)
-        self.layout.addRow("Prezzo:", self.price_edit)
+        self.layout.addRow("Numero Fornitore:", self.supplier_number_edit)
+        self.layout.addRow("Numero Operazione POS:", self.pos_operation_edit)
+        self.layout.addRow("Importo Lordo POS:", self.pos_gross_amount_edit)
+        self.layout.addRow("Commissione POS:", self.pos_commission_edit)
+        self.layout.addRow("Importo Netto:", self.net_amount_edit)
         
         self.buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
         self.buttons.accepted.connect(self.accept)
@@ -40,12 +47,13 @@ class ManualInputDialog(QDialog):
     def get_data(self):
         """Restituisce i dati inseriti nel dialogo."""
         return {
-            'DATA': self.date_edit.date().toString("yyyy-MM-dd"),
-            'PRODOTTO': self.product_edit.text() or None,
+            'DATA': self.date_edit.dateTime().toString("yyyy-MM-dd hh:mm:ss"),
             'FORNITORE': self.supplier_edit.text() or None,
-            'CATEGORIA': self.category_edit.text() or None,
-            'Quantità': self.quantity_edit.value() if self.quantity_edit.value() > 0 else None,
-            'IMPORTO': self.price_edit.value()
+            'NUMERO FORNITORE': self.supplier_number_edit.text() or None,
+            'NUMERO OPERAZIONE POS': self.pos_operation_edit.text() or None,
+            'IMPORTO LORDO POS': self.pos_gross_amount_edit.value() if self.pos_gross_amount_edit.value() > 0 else None,
+            'COMMISSIONE POS': self.pos_commission_edit.value() if self.pos_commission_edit.value() > 0 else None,
+            'IMPORTO NETTO': self.net_amount_edit.value()
         }
 
 class ImportWidget(QWidget):
@@ -67,7 +75,7 @@ class ImportWidget(QWidget):
         title_label.setStyleSheet("font-size: 18px; font-weight: bold; color: grey;")
         layout.addWidget(title_label)
 
-        btn_fornitori = QPushButton("Ordini Fornitori (XLSM)")
+        btn_fornitori = QPushButton("Importa Dati Fornitori")
         btn_fornitori.setMinimumHeight(50)
         btn_fornitori.setStyleSheet("""
             QPushButton {
@@ -89,7 +97,7 @@ class ImportWidget(QWidget):
         btn_fornitori.clicked.connect(lambda: self.open_file_dialog("Fornitore"))
         layout.addWidget(btn_fornitori)
 
-        btn_pos = QPushButton("Transazioni Point of Sales (POS - XLSX)")
+        btn_pos = QPushButton("Importa Dati POS")
         btn_pos.setMinimumHeight(50)
         btn_pos.setStyleSheet("""
             QPushButton {
@@ -111,7 +119,7 @@ class ImportWidget(QWidget):
         btn_pos.clicked.connect(lambda: self.open_file_dialog("POS"))
         layout.addWidget(btn_pos)
 
-        btn_manuale = QPushButton("Manuale")
+        btn_manuale = QPushButton("Importa Dati Manualmente")
         btn_manuale.setMinimumHeight(50)
         btn_manuale.setStyleSheet("""
             QPushButton {
@@ -135,7 +143,7 @@ class ImportWidget(QWidget):
 
     def open_file_dialog(self, source_type):
         """Apre un QFileDialog per selezionare il file da importare."""
-        file_filter = "Excel Files (*.xlsm)" if source_type == "Fornitore" else "Excel Files (*.xlsx)"
+        file_filter = "Excel Files (*.xlsx)"
         file_path, _ = QFileDialog.getOpenFileName(self, f"Seleziona file {source_type}", "", file_filter)
 
         if file_path:
@@ -160,20 +168,27 @@ class ImportWidget(QWidget):
                                  f"Impossibile importare il file {file_path}.\n\nErrore: {e}")
 
     def parse_supplier_xlsm(self, file_path):
-        """Esegue il parsing di un file XLSM di ordini fornitore."""
-        df = pd.read_excel(file_path, engine='openpyxl', sheet_name=0)
+        """Esegue il parsing di un file XLSX di ordini fornitore."""
+        df = pd.read_excel(file_path, engine='openpyxl', sheet_name=0, header=3)
+        
+        # Applica la logica di pulizia fornita dall'utente
+        fornitori = df.dropna(subset=['Totale'])
+        fornitori = fornitori[['Data', 'Numero Rif.', 'Fornitore', 'Totale']]
+        
         transactions = []
-        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
-
-        for _, row in df.iterrows():
-            prezzo_totale = float(row['quantita']) * float(row['costo_unita'])
+        for _, row in fornitori.iterrows():
+            # Converte la data al formato con i secondi
+            data_obj = pd.to_datetime(row['Data'])
+            data_formatted = data_obj.strftime('%Y-%m-%d %H:%M:%S')
+            
             transaction = {
-                'DATA': pd.to_datetime(row['data_ordine']).strftime('%Y-%m-%d'),
-                'PRODOTTO': row.get('prodotto'),
-                'FORNITORE': row.get('fornitore'),
-                'CATEGORIA': row.get('categoria'),
-                'QUANTITA\'': row.get('quantita'),
-                'IMPORTO': f"{-prezzo_totale:.2f}"
+                'DATA': data_formatted,
+                'FORNITORE': row.get('Fornitore'),
+                'NUMERO FORNITORE': str(row.get('Numero Rif.', '')) if row.get('Numero Rif.') is not None else None,
+                'NUMERO OPERAZIONE POS': None,
+                'IMPORTO LORDO POS': None,
+                'COMMISSIONE POS': None,
+                'IMPORTO NETTO': -abs(float(row['Totale']))  # Converti in negativo (uscita/costo)
             }
             transactions.append(transaction)
         return transactions
@@ -181,17 +196,25 @@ class ImportWidget(QWidget):
     def parse_pos_xlsx(self, file_path):
         """Esegue il parsing di un file XLSX di transazioni POS."""
         df = pd.read_excel(file_path)
-        transactions = []
-        df.columns = df.columns.str.strip().str.lower().str.replace(' ', '_')
         
-        for _, row in df.iterrows():
+        # Applica la logica di pulizia fornita dall'utente
+        pos = df.dropna(subset=['Importo netto'])
+        pos = pos[['Data Transazione', 'Numero operazione', 'Importo lordo', 'Commissioni', 'Importo netto']]
+        
+        transactions = []
+        for _, row in pos.iterrows():
+            # La data transazione è già nel formato corretto con i secondi
+            data_obj = pd.to_datetime(row['Data Transazione'])
+            data_formatted = data_obj.strftime('%Y-%m-%d %H:%M:%S')
+            
             transaction = {
-                'DATA': pd.to_datetime(row['date']).strftime('%Y-%m-%d'),
-                'PRODOTTO': row.get('product_name'),
+                'DATA': data_formatted,
                 'FORNITORE': None,
-                'CATEGORIA': None,
-                'QUANTITA\'': row.get('quantity'),
-                'IMPORTO': f"{float(row['total_amount']):.2f}"
+                'NUMERO FORNITORE': None,
+                'NUMERO OPERAZIONE POS': str(row.get('Numero operazione', '')),  # Converti sempre in stringa
+                'IMPORTO LORDO POS': float(row.get('Importo lordo', 0)),
+                'COMMISSIONE POS': float(row.get('Commissioni', 0)),
+                'IMPORTO NETTO': float(row['Importo netto'])
             }
             transactions.append(transaction)
         return transactions
@@ -206,17 +229,18 @@ class ImportWidget(QWidget):
             if dialog.exec() == QDialog.Accepted:
                 data = dialog.get_data()
                 
-                importo = data['IMPORTO']
+                importo_netto = data['IMPORTO NETTO']
                 if item == "Aggiungi spesa":
-                    importo = -abs(importo)
+                    importo_netto = -abs(importo_netto)
 
                 transaction = {
                     'DATA': data['DATA'],
-                    'PRODOTTO': data['PRODOTTO'],
                     'FORNITORE': data['FORNITORE'],
-                    'CATEGORIA': data['CATEGORIA'],
-                    'QUANTITA\'': data['Quantità'],
-                    'IMPORTO': f"{importo:.2f}"
+                    'NUMERO FORNITORE': data['NUMERO FORNITORE'],
+                    'NUMERO OPERAZIONE POS': data['NUMERO OPERAZIONE POS'],
+                    'IMPORTO LORDO POS': data['IMPORTO LORDO POS'],
+                    'COMMISSIONE POS': data['COMMISSIONE POS'],
+                    'IMPORTO NETTO': importo_netto
                 }
                 
                 self.data_imported.emit("Manuale", [transaction])

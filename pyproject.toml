@@ -19,6 +19,7 @@ dependencies = [
     "seaborn>=0.13.2",
     "appdirs>=1.4.4",
     "briefcase>=0.3.17",
+    "ipykernel>=6.29.5",
 ]
 
 [tool.setuptools.packages.find]
@@ -44,7 +45,7 @@ finanziaria di bar e ristoranti. Offre import dati, analisi, reportistica e
 gestione dello storico transazioni."""
 
 sources = ["barflow"]
-main_module = "barflow"
+main_module = "barflow.__main__"
 console_app = false
 resources = ["resources"]
 

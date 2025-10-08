@@ -2,7 +2,7 @@
 Widget per la visualizzazione delle transazioni
 """
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QHBoxLayout, QTableWidget, 
-                              QTableWidgetItem, QHeaderView, QPushButton)
+                              QTableWidgetItem, QHeaderView, QPushButton, QSizePolicy)
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 
@@ -20,34 +20,38 @@ class TransactionsWidget(QWidget):
         # Layout principale con margini ridotti per utilizzare più spazio
         main_layout = QVBoxLayout(self)
         main_layout.setContentsMargins(10, 10, 10, 10)
-        
-        # Layout orizzontale per centrare la tabella
-        h_layout = QHBoxLayout()
-        h_layout.setAlignment(Qt.AlignCenter)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(7)
-        self.table.setHorizontalHeaderLabels(["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"])
+        self.table.setColumnCount(8)
+        self.table.setHorizontalHeaderLabels([
+            "DATA", "SORGENTE", "FORNITORE", "NUMERO FORNITORE", 
+            "NUMERO OPERAZIONE POS", "IMPORTO LORDO POS", "COMMISSIONE POS", "IMPORTO NETTO"
+        ])
         
-        # Configurazione header per distribuire uniformemente le colonne
+        # Configurazione header responsive
         header = self.table.horizontalHeader()
-        header.setStretchLastSection(True)   # Permette l'espansione per riempire spazio
         header.setSectionsClickable(False)   # Disabilita il click sui header
         
-        # Usa Stretch per tutte le colonne per distribuire uniformemente lo spazio
-        for col in range(7):
-            header.setSectionResizeMode(col, QHeaderView.Stretch)
+        # Imposta dimensioni responsive per le colonne
+        # Alcune colonne hanno contenuto più importante e necessitano più spazio
+        header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # DATA - contenuto fisso
+        header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # SORGENTE - contenuto limitato
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # FORNITORE - può essere lungo
+        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # NUMERO FORNITORE - contenuto numerico
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO OPERAZIONE POS - contenuto numerico
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # IMPORTO LORDO POS - contenuto numerico
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # COMMISSIONE POS - contenuto numerico
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # IMPORTO NETTO - contenuto numerico
         
-        # Imposta dimensione fissa della tabella per occupare la maggior parte dello spazio
-        self.table.setFixedWidth(1000)  # Larghezza fissa ridotta
-        self.table.setMinimumHeight(500)  # Altezza minima per occupare spazio verticale
+        # Rimuovi dimensioni fisse - ora la tabella si adatta al contenitore
+        self.table.setMinimumHeight(400)  # Altezza minima ridotta ma ragionevole
         
-        # Configurazioni aggiuntive per evitare colonne extra
+        # Imposta policy di ridimensionamento per rendere la tabella espandibile
+        self.table.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        
+        # Configurazioni scrolling per gestire contenuto che eccede
         self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
-        
-        # Assicurati che la tabella sia esattamente delle dimensioni necessarie
-        self.table.resizeColumnsToContents()
         
         self.table.setAlternatingRowColors(False)
         self.table.setGridStyle(Qt.NoPen)
@@ -80,11 +84,8 @@ class TransactionsWidget(QWidget):
             }
         """)
         
-        # Aggiungi la tabella al layout orizzontale
-        h_layout.addWidget(self.table)
-        
-        # Aggiungi il layout orizzontale al layout principale
-        main_layout.addLayout(h_layout)
+        # Aggiungi la tabella direttamente al layout principale
+        main_layout.addWidget(self.table)
         
         # Layout per i pulsanti
         buttons_layout = QHBoxLayout()
@@ -151,44 +152,127 @@ class TransactionsWidget(QWidget):
         self.table.setRowCount(len(sorted_data))
 
         for row, transaction in enumerate(sorted_data):
-            # Crea gli item e imposta allineamento centrato per tutti
-            data_item = QTableWidgetItem(transaction.get('DATA', ''))
-            data_item.setTextAlignment(Qt.AlignCenter)
-            
-            sorgente_item = QTableWidgetItem(transaction.get('SORGENTE', ''))
-            sorgente_item.setTextAlignment(Qt.AlignCenter)
-            
-            prodotto_item = QTableWidgetItem(transaction.get('PRODOTTO', ''))
-            prodotto_item.setTextAlignment(Qt.AlignCenter)
-            
-            fornitore_item = QTableWidgetItem(transaction.get('FORNITORE', ''))
-            fornitore_item.setTextAlignment(Qt.AlignCenter)
-            
-            categoria_item = QTableWidgetItem(transaction.get('CATEGORIA', ''))
-            categoria_item.setTextAlignment(Qt.AlignCenter)
-            
-            quantita_item = QTableWidgetItem(str(transaction.get('QUANTITA\'', '')))
-            quantita_item.setTextAlignment(Qt.AlignCenter)
-            
-            importo_str = transaction.get('IMPORTO', '0.0')
-            importo_val = float(importo_str)
-            importo_item = QTableWidgetItem(f"{importo_val:.2f} €")
-            importo_item.setTextAlignment(Qt.AlignCenter)  # Centra anche l'importo per uniformità
+            try:
+                # Crea gli item e imposta allineamento centrato per tutti
+                data_item = QTableWidgetItem(str(transaction.get('DATA', '')))
+                data_item.setTextAlignment(Qt.AlignCenter)
+                
+                sorgente_item = QTableWidgetItem(str(transaction.get('SORGENTE', '')))
+                sorgente_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Per il fornitore, trunca il testo se troppo lungo per migliore visualizzazione
+                fornitore_text = str(transaction.get('FORNITORE', '') or '')
+                if len(fornitore_text) > 20:
+                    fornitore_text = fornitore_text[:17] + "..."
+                fornitore_item = QTableWidgetItem(fornitore_text)
+                fornitore_item.setTextAlignment(Qt.AlignCenter)
+                # Imposta il tooltip con il testo completo
+                fornitore_item.setToolTip(str(transaction.get('FORNITORE', '') or ''))
+                
+                numero_fornitore_item = QTableWidgetItem(str(transaction.get('NUMERO FORNITORE', '') or ''))
+                numero_fornitore_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Gestisci numeri molto grandi per NUMERO OPERAZIONE POS convertendo sempre in stringa
+                numero_pos_value = transaction.get('NUMERO OPERAZIONE POS', '')
+                if numero_pos_value is not None and numero_pos_value != '':
+                    numero_pos_str = str(numero_pos_value)
+                else:
+                    numero_pos_str = ''
+                numero_pos_item = QTableWidgetItem(numero_pos_str)
+                numero_pos_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Gestione importo lordo POS (può essere None)
+                importo_lordo = transaction.get('IMPORTO LORDO POS')
+                if importo_lordo is not None:
+                    try:
+                        importo_lordo_str = f"{float(importo_lordo):.2f} €"
+                    except (ValueError, TypeError):
+                        importo_lordo_str = str(importo_lordo) if importo_lordo != '' else ""
+                else:
+                    importo_lordo_str = ""
+                importo_lordo_item = QTableWidgetItem(importo_lordo_str)
+                importo_lordo_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Gestione commissione POS (può essere None)
+                commissione = transaction.get('COMMISSIONE POS')
+                if commissione is not None:
+                    try:
+                        commissione_str = f"{float(commissione):.2f} €"
+                    except (ValueError, TypeError):
+                        commissione_str = str(commissione) if commissione != '' else ""
+                else:
+                    commissione_str = ""
+                commissione_item = QTableWidgetItem(commissione_str)
+                commissione_item.setTextAlignment(Qt.AlignCenter)
+                
+                # Importo netto
+                importo_netto_str = transaction.get('IMPORTO NETTO', '0.0')
+                try:
+                    importo_netto_val = float(importo_netto_str)
+                    importo_netto_item = QTableWidgetItem(f"{importo_netto_val:.2f} €")
+                    importo_netto_item.setTextAlignment(Qt.AlignCenter)
 
-            if importo_val < 0:
-                importo_item.setForeground(QColor("red"))
-            else:
-                importo_item.setForeground(QColor("green"))
+                    if importo_netto_val < 0:
+                        importo_netto_item.setForeground(QColor("red"))
+                    else:
+                        importo_netto_item.setForeground(QColor("green"))
+                except (ValueError, TypeError):
+                    importo_netto_item = QTableWidgetItem(str(importo_netto_str))
+                    importo_netto_item.setTextAlignment(Qt.AlignCenter)
 
-            self.table.setItem(row, 0, data_item)
-            self.table.setItem(row, 1, sorgente_item)
-            self.table.setItem(row, 2, prodotto_item)
-            self.table.setItem(row, 3, fornitore_item)
-            self.table.setItem(row, 4, categoria_item)
-            self.table.setItem(row, 5, quantita_item)
-            self.table.setItem(row, 6, importo_item)
+                self.table.setItem(row, 0, data_item)
+                self.table.setItem(row, 1, sorgente_item)
+                self.table.setItem(row, 2, fornitore_item)
+                self.table.setItem(row, 3, numero_fornitore_item)
+                self.table.setItem(row, 4, numero_pos_item)
+                self.table.setItem(row, 5, importo_lordo_item)
+                self.table.setItem(row, 6, commissione_item)
+                self.table.setItem(row, 7, importo_netto_item)
+                
+            except Exception as e:
+                # Log dell'errore e crea una riga vuota piuttosto che crashare
+                print(f"Errore nella creazione della riga {row}: {e}")
+                # Crea celle vuote per evitare il crash
+                for col in range(8):
+                    empty_item = QTableWidgetItem("")
+                    empty_item.setTextAlignment(Qt.AlignCenter)
+                    self.table.setItem(row, col, empty_item)
+        
+        # Dopo aver popolato la tabella, ottimizza le dimensioni delle colonne
+        self._optimize_column_widths()
 
     def clear_table(self):
         """Pulisce la tabella riportandola allo stato iniziale vuoto."""
         self.table.setRowCount(0)
         self.table.clearContents()
+    
+    def resizeEvent(self, event):
+        """Gestisce il ridimensionamento del widget per ottimizzare la tabella."""
+        super().resizeEvent(event)
+        # Forza l'aggiornamento delle dimensioni delle colonne dopo il ridimensionamento
+        if hasattr(self, 'table') and self.table.rowCount() > 0:
+            # Aggiorna le dimensioni delle colonne che usano ResizeToContents
+            for col in [0, 1, 3, 4, 5, 6, 7]:  # Colonne con ResizeToContents
+                self.table.resizeColumnToContents(col)
+    
+    def _optimize_column_widths(self):
+        """Ottimizza la larghezza delle colonne in base al contenuto."""
+        # Ridimensiona le colonne con contenuto fisso
+        for col in [0, 1, 3, 4, 5, 6, 7]:  # Escludi colonna 2 (FORNITORE) che usa Stretch
+            self.table.resizeColumnToContents(col)
+        
+        # Imposta larghezze minime e massime per alcune colonne critiche
+        header = self.table.horizontalHeader()
+        
+        # DATA: larghezza minima per le date
+        if self.table.columnWidth(0) < 100:
+            self.table.setColumnWidth(0, 100)
+        
+        # SORGENTE: larghezza massima ragionevole
+        if self.table.columnWidth(1) > 100:
+            self.table.setColumnWidth(1, 100)
+        
+        # Colonne numeriche: larghezza minima per leggibilità
+        for col in [3, 4, 5, 6, 7]:
+            if self.table.columnWidth(col) < 80:
+                self.table.setColumnWidth(col, 80)
