@@ -1,7 +1,7 @@
 [project]
-name = "barflow-manager"
+name = "AccountFlow-manager"
 version = "1.0.0"
-description = "BarFlow - Gestione Finanziaria per Bar"
+description = "AccountFlow - Gestione Finanziaria"
 readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
@@ -32,16 +32,16 @@ package = true
 
 # Configurazione Briefcase
 [tool.briefcase]
-project_name = "BarFlow"
+project_name = "AccountFlow"
 bundle = "com.andreafrattini"
 url = "https://github.com/andreafrattini/barflow"
 version = "1.0.0"
 
 [tool.briefcase.app.barflow]
-formal_name = "BarFlow - Gestione Finanziaria"
-description = "Applicazione desktop per la gestione finanziaria di bar e ristoranti"
-long_description = """BarFlow è un'applicazione desktop completa per la gestione 
-finanziaria di bar e ristoranti. Offre import dati, analisi, reportistica e 
+formal_name = "AccountFlow - Gestione Finanziaria"
+description = "Applicazione desktop per la gestione finanziaria di attività commerciali"
+long_description = """AccountFlow è un'applicazione desktop completa per la gestione 
+finanziaria di attività commerciali. Offre import dati, analisi, reportistica e 
 gestione dello storico transazioni."""
 
 sources = ["barflow"]

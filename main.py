@@ -12,7 +12,7 @@ logging.basicConfig(
 )
 
 def main():
-    """Funzione principale dell'applicazione BarFlow"""
+    """Funzione principale dell'applicazione AccountFlow"""
     try:
         # Inizializza il database prima di tutto
         from barflow.data.db_manager import initialize_and_migrate_db
@@ -20,14 +20,13 @@ def main():
         
         # Importa e avvia l'interfaccia grafica
         from PySide6.QtWidgets import QApplication
-        from PySide6.QtCore import Qt
         from barflow.ui.main_window import MainWindow
         
         # Crea l'applicazione Qt
         app = QApplication(sys.argv)
-        app.setApplicationName("BarFlow")
+        app.setApplicationName("AccountFlow")
         app.setApplicationVersion("1.0.0")
-        app.setOrganizationName("BarFlow Team")
+        app.setOrganizationName("AccountFlow Team")
         app.setStyle("Fusion")
         
         # Crea e mostra la finestra principale

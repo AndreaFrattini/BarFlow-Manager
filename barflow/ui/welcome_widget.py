@@ -1,5 +1,5 @@
 """
-Widget di benvenuto per BarFlow
+Widget di benvenuto per AccountFlow
 """
 from PySide6.QtWidgets import QWidget, QVBoxLayout, QLabel
 from PySide6.QtGui import QPixmap
@@ -20,7 +20,7 @@ class WelcomeWidget(QWidget):
         layout.setSpacing(20)
         
         # Titolo
-        title_label = QLabel("MokaMojito Cash Manager")
+        title_label = QLabel("AccountFlow - Gestione Finanziaria")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
             QLabel {

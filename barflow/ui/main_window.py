@@ -1,5 +1,5 @@
 """
-Finestra principale dell'applicazione BarFlow
+Finestra principale dell'applicazione AccountFlow
 """
 from PySide6.QtWidgets import (QMainWindow, QWidget, QVBoxLayout, 
                               QHBoxLayout, QLabel, QMessageBox, QFileDialog,
@@ -20,7 +20,7 @@ from .history_management_widget import HistoryManagementWidget
 from barflow.data.db_manager import DatabaseManager
 
 class MainWindow(QMainWindow):
-    """Finestra principale dell'applicazione BarFlow"""
+    """Finestra principale dell'applicazione AccountFlow"""
     
     def __init__(self):
         super().__init__()
@@ -43,7 +43,7 @@ class MainWindow(QMainWindow):
     
     def init_ui(self):
         """Inizializza l'interfaccia utente"""
-        self.setWindowTitle("BarFlow - Gestione Semplificata")
+        self.setWindowTitle("AccountFlow - Gestione Finanziaria")
         
         # Calcola le dimensioni ottimali in base allo schermo
         screen = QApplication.primaryScreen()
@@ -94,7 +94,7 @@ class MainWindow(QMainWindow):
         sidebar_layout.setContentsMargins(10, 20, 10, 20)
         sidebar_layout.setSpacing(5)
         
-        title_label = QLabel("BarFlow")
+        title_label = QLabel("AccountFlow")
         title_label.setAlignment(Qt.AlignCenter)
         title_label.setStyleSheet("""
             QLabel {
@@ -149,7 +149,7 @@ class MainWindow(QMainWindow):
         
         sidebar_layout.addWidget(self.nav_list)
         
-        info_label = QLabel("v2.0.0\n© 2025 BarFlow Simplified")
+        info_label = QLabel("v1.0.0\n© 2025 AccountFlow")
         info_label.setAlignment(Qt.AlignCenter)
         info_label.setStyleSheet("""
             QLabel {
@@ -299,7 +299,7 @@ class MainWindow(QMainWindow):
 
         # Genera il nome del file con timestamp
         today = datetime.now().strftime("%Y-%m-%d")
-        default_filename = f"{today}_storico_barflow.xlsx"
+        default_filename = f"{today}_storico_accountflow.xlsx"
 
         # Finestra di dialogo per scegliere dove salvare il file
         file_path, _ = QFileDialog.getSaveFileName(
