@@ -434,7 +434,7 @@ class AnalysisWidget(QWidget):
                       linewidth=2, alpha=0.8, label=f'Obiettivo Pareggio: €{media_uscite_giornaliera:,.0f}')
 
         # Styling moderno
-        ax.set_title('Performance Media per Giorno della Settimana', fontsize=16, fontweight='bold', 
+        ax.set_title('Performance Media Giornaliera', fontsize=16, fontweight='bold', 
                     color='#2C3E50', pad=20)
         
         ax.set_ylabel('Media Entrate Giornaliere (€)', fontsize=12, color='#34495E', fontweight='bold')

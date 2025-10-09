@@ -10,6 +10,7 @@ class TransactionsWidget(QWidget):
     """Widget per visualizzare le transazioni importate."""
     
     save_requested = Signal()  # Segnale emesso quando si clicca il tasto Salva
+    clear_temp_requested = Signal()  # Segnale emesso quando si clicca il tasto Elimina Tabella Temporanea
 
     def __init__(self):
         super().__init__()
@@ -122,7 +123,7 @@ class TransactionsWidget(QWidget):
         self.save_button.clicked.connect(self.save_requested.emit)
         
         # Tasto Elimina tabella
-        self.clear_button = QPushButton("🗑️ Elimina Tabella")
+        self.clear_button = QPushButton("🗑️ Pulisci Tabella Temporanea")
         self.clear_button.setFixedWidth(200)
         self.clear_button.setFixedHeight(40)
         self.clear_button.setStyleSheet("""
@@ -142,153 +143,160 @@ class TransactionsWidget(QWidget):
                 background-color: #CB4335;
             }
         """)
-        self.clear_button.clicked.connect(self.clear_table)
+        self.clear_button.clicked.connect(self.clear_temp_requested.emit)
         
         buttons_layout.addWidget(self.save_button)
         buttons_layout.addWidget(self.clear_button)
         main_layout.addLayout(buttons_layout)
 
     def update_table(self, transactions_data):
-        """Aggiorna la tabella con i dati delle transazioni."""
-        # Ordina i dati per timestamp di importazione decrescente (più recenti per primi)
-        sorted_data = sorted(transactions_data, 
-                           key=lambda x: x.get('_IMPORT_TIMESTAMP', 0), 
-                           reverse=True)
+        """Aggiorna la tabella con i dati delle transazioni in modo ottimizzato."""
+        print(f"🔄 Aggiornamento tabella con {len(transactions_data)} transazioni...")
         
-        self.table.setRowCount(len(sorted_data))
+        # OTTIMIZZAZIONE 1: Disabilita temporaneamente il rendering per migliorare performance
+        self.table.setUpdatesEnabled(False)
+        
+        try:
+            # OTTIMIZZAZIONE 2: Pulisci completamente la tabella esistente
+            self.table.clearContents()
+            self.table.setRowCount(0)
+            
+            # Se non ci sono dati, esci subito
+            if not transactions_data:
+                print("✓ Tabella vuota")
+                return
+            
+            # OTTIMIZZAZIONE 3: Ordina i dati (limitiamo a max 1000 record per performance)
+            sorted_data = sorted(transactions_data, 
+                               key=lambda x: x.get('_IMPORT_TIMESTAMP', 0), 
+                               reverse=True)
+            
+            # Limita a 1000 record per evitare freeze dell'interfaccia
+            if len(sorted_data) > 1000:
+                sorted_data = sorted_data[:1000]
+                print(f"⚠️ Mostrati solo i primi 1000 record di {len(transactions_data)} per performance")
+            
+            # OTTIMIZZAZIONE 4: Imposta la dimensione della tabella una sola volta
+            self.table.setRowCount(len(sorted_data))
 
-        for row, transaction in enumerate(sorted_data):
-            try:
-                # Crea gli item e imposta allineamento centrato per tutti
-                data_item = QTableWidgetItem(str(transaction.get('DATA', '')))
-                data_item.setTextAlignment(Qt.AlignCenter)
+            # OTTIMIZZAZIONE 5: Disabilita il ridimensionamento automatico durante il popolamento
+            header = self.table.horizontalHeader()
+            header.setSectionResizeMode(QHeaderView.Fixed)
+
+            for row, transaction in enumerate(sorted_data):
+                # Mostra progresso ogni 100 righe per debug
+                if row % 100 == 0 and row > 0:
+                    print(f"  Elaborando riga {row}/{len(sorted_data)}...")
                 
-                sorgente_item = QTableWidgetItem(str(transaction.get('SORGENTE', '')))
-                sorgente_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Per la descrizione, trunca il testo se troppo lungo per migliore visualizzazione
-                descrizione_text = str(transaction.get('DESCRIZIONE', '') or '')
-                if len(descrizione_text) > 25:
-                    descrizione_text = descrizione_text[:22] + "..."
-                descrizione_item = QTableWidgetItem(descrizione_text)
-                descrizione_item.setTextAlignment(Qt.AlignCenter)
-                # Imposta il tooltip con il testo completo
-                descrizione_item.setToolTip(str(transaction.get('DESCRIZIONE', '') or ''))
-                
-                # Per il fornitore, trunca il testo se troppo lungo per migliore visualizzazione
-                fornitore_text = str(transaction.get('FORNITORE', '') or '')
-                if len(fornitore_text) > 20:
-                    fornitore_text = fornitore_text[:17] + "..."
-                fornitore_item = QTableWidgetItem(fornitore_text)
-                fornitore_item.setTextAlignment(Qt.AlignCenter)
-                # Imposta il tooltip con il testo completo
-                fornitore_item.setToolTip(str(transaction.get('FORNITORE', '') or ''))
-                
-                numero_fornitore_item = QTableWidgetItem(str(transaction.get('NUMERO FORNITORE', '') or ''))
-                numero_fornitore_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Gestisci numeri molto grandi per NUMERO OPERAZIONE POS convertendo sempre in stringa
-                numero_pos_value = transaction.get('NUMERO OPERAZIONE POS', '')
-                if numero_pos_value is not None and numero_pos_value != '':
-                    numero_pos_str = str(numero_pos_value)
-                else:
-                    numero_pos_str = ''
-                numero_pos_item = QTableWidgetItem(numero_pos_str)
-                numero_pos_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Gestione importo lordo POS (può essere None)
-                importo_lordo = transaction.get('IMPORTO LORDO POS')
-                if importo_lordo is not None:
-                    try:
-                        importo_lordo_str = f"{float(importo_lordo):.2f} €"
-                    except (ValueError, TypeError):
-                        importo_lordo_str = str(importo_lordo) if importo_lordo != '' else ""
-                else:
-                    importo_lordo_str = ""
-                importo_lordo_item = QTableWidgetItem(importo_lordo_str)
-                importo_lordo_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Gestione commissione POS (può essere None)
-                commissione = transaction.get('COMMISSIONE POS')
-                if commissione is not None:
-                    try:
-                        commissione_str = f"{float(commissione):.2f} €"
-                    except (ValueError, TypeError):
-                        commissione_str = str(commissione) if commissione != '' else ""
-                else:
-                    commissione_str = ""
-                commissione_item = QTableWidgetItem(commissione_str)
-                commissione_item.setTextAlignment(Qt.AlignCenter)
-                
-                # Importo netto
-                importo_netto_str = transaction.get('IMPORTO NETTO', '0.0')
                 try:
-                    importo_netto_val = float(importo_netto_str)
-                    importo_netto_item = QTableWidgetItem(f"{importo_netto_val:.2f} €")
-                    importo_netto_item.setTextAlignment(Qt.AlignCenter)
-
-                    if importo_netto_val < 0:
-                        importo_netto_item.setForeground(QColor("red"))
-                    else:
-                        importo_netto_item.setForeground(QColor("green"))
-                except (ValueError, TypeError):
-                    importo_netto_item = QTableWidgetItem(str(importo_netto_str))
-                    importo_netto_item.setTextAlignment(Qt.AlignCenter)
-
-                self.table.setItem(row, 0, data_item)
-                self.table.setItem(row, 1, sorgente_item)
-                self.table.setItem(row, 2, descrizione_item)
-                self.table.setItem(row, 3, fornitore_item)
-                self.table.setItem(row, 4, numero_fornitore_item)
-                self.table.setItem(row, 5, numero_pos_item)
-                self.table.setItem(row, 6, importo_lordo_item)
-                self.table.setItem(row, 7, commissione_item)
-                self.table.setItem(row, 8, importo_netto_item)
-                
-            except Exception as e:
-                # Log dell'errore e crea una riga vuota piuttosto che crashare
-                print(f"Errore nella creazione della riga {row}: {e}")
-                # Crea celle vuote per evitare il crash
-                for col in range(9):
-                    empty_item = QTableWidgetItem("")
-                    empty_item.setTextAlignment(Qt.AlignCenter)
-                    self.table.setItem(row, col, empty_item)
-        
-        # Dopo aver popolato la tabella, ottimizza le dimensioni delle colonne
-        self._optimize_column_widths()
+                    # OTTIMIZZAZIONE 6: Creazione item più diretta, meno formattazione
+                    items = []
+                    
+                    # DATA
+                    items.append(QTableWidgetItem(str(transaction.get('DATA', ''))))
+                    
+                    # SORGENTE  
+                    items.append(QTableWidgetItem(str(transaction.get('SORGENTE', ''))))
+                    
+                    # DESCRIZIONE (truncata)
+                    desc_text = str(transaction.get('DESCRIZIONE', '') or '')
+                    if len(desc_text) > 25:
+                        desc_text = desc_text[:22] + "..."
+                    desc_item = QTableWidgetItem(desc_text)
+                    if transaction.get('DESCRIZIONE'):
+                        desc_item.setToolTip(str(transaction.get('DESCRIZIONE', '')))
+                    items.append(desc_item)
+                    
+                    # FORNITORE (truncato)
+                    forn_text = str(transaction.get('FORNITORE', '') or '')
+                    if len(forn_text) > 20:
+                        forn_text = forn_text[:17] + "..."
+                    forn_item = QTableWidgetItem(forn_text)
+                    if transaction.get('FORNITORE'):
+                        forn_item.setToolTip(str(transaction.get('FORNITORE', '')))
+                    items.append(forn_item)
+                    
+                    # NUMERO FORNITORE
+                    items.append(QTableWidgetItem(str(transaction.get('NUMERO FORNITORE', '') or '')))
+                    
+                    # NUMERO OPERAZIONE POS
+                    pos_num = transaction.get('NUMERO OPERAZIONE POS', '')
+                    items.append(QTableWidgetItem(str(pos_num) if pos_num else ''))
+                    
+                    # IMPORTO LORDO POS
+                    lordo = transaction.get('IMPORTO LORDO POS')
+                    lordo_str = f"{float(lordo):.2f} €" if lordo is not None else ""
+                    items.append(QTableWidgetItem(lordo_str))
+                    
+                    # COMMISSIONE POS
+                    comm = transaction.get('COMMISSIONE POS')
+                    comm_str = f"{float(comm):.2f} €" if comm is not None else ""
+                    items.append(QTableWidgetItem(comm_str))
+                    
+                    # IMPORTO NETTO
+                    try:
+                        netto_val = float(transaction.get('IMPORTO NETTO', 0))
+                        netto_item = QTableWidgetItem(f"{netto_val:.2f} €")
+                        # Colore solo per importo netto
+                        if netto_val < 0:
+                            netto_item.setForeground(QColor("red"))
+                        else:
+                            netto_item.setForeground(QColor("green"))
+                        items.append(netto_item)
+                    except (ValueError, TypeError):
+                        items.append(QTableWidgetItem(str(transaction.get('IMPORTO NETTO', '0.00'))))
+                    
+                    # OTTIMIZZAZIONE 7: Imposta tutti gli item in una volta e allineamento minimo
+                    for col, item in enumerate(items):
+                        item.setTextAlignment(Qt.AlignCenter)
+                        self.table.setItem(row, col, item)
+                        
+                except Exception as e:
+                    print(f"Errore nella creazione della riga {row}: {e}")
+                    # Crea celle vuote per evitare il crash
+                    for col in range(9):
+                        empty_item = QTableWidgetItem("")
+                        empty_item.setTextAlignment(Qt.AlignCenter)
+                        self.table.setItem(row, col, empty_item)
+            
+            print(f"✓ Tabella popolata con {len(sorted_data)} righe")
+            
+        finally:
+            # OTTIMIZZAZIONE 8: Riabilita il ridimensionamento solo alla fine
+            header = self.table.horizontalHeader()
+            header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # DATA
+            header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # SORGENTE  
+            header.setSectionResizeMode(2, QHeaderView.Interactive)  # DESCRIZIONE
+            header.setSectionResizeMode(3, QHeaderView.Interactive)  # FORNITORE
+            header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO FORNITORE
+            header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # NUMERO POS
+            header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # LORDO
+            header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # COMMISSIONE
+            header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # NETTO
+            
+            # OTTIMIZZAZIONE 9: Riabilita gli aggiornamenti alla fine
+            self.table.setUpdatesEnabled(True)
+            
+            print("✓ Aggiornamento tabella completato")
 
     def clear_table(self):
         """Pulisce la tabella riportandola allo stato iniziale vuoto."""
-        self.table.setRowCount(0)
-        self.table.clearContents()
+        print("🔄 Pulizia tabella...")
+        self.table.setUpdatesEnabled(False)
+        try:
+            self.table.clearContents()
+            self.table.setRowCount(0)
+            print("✓ Tabella pulita")
+        finally:
+            self.table.setUpdatesEnabled(True)
     
     def resizeEvent(self, event):
         """Gestisce il ridimensionamento del widget per ottimizzare la tabella."""
         super().resizeEvent(event)
-        # Forza l'aggiornamento delle dimensioni delle colonne dopo il ridimensionamento
-        if hasattr(self, 'table') and self.table.rowCount() > 0:
-            # Aggiorna le dimensioni delle colonne che usano ResizeToContents
-            for col in [0, 1, 3, 4, 5, 6, 7]:  # Colonne con ResizeToContents
-                self.table.resizeColumnToContents(col)
+        # OTTIMIZZAZIONE: Rimosso il resize automatico per migliorare performance
+        # Il ridimensionamento è ora gestito direttamente in update_table()
+        pass
+        pass
     
-    def _optimize_column_widths(self):
-        """Ottimizza la larghezza delle colonne in base al contenuto."""
-        # Ridimensiona le colonne con contenuto fisso
-        for col in [0, 1, 3, 4, 5, 6, 7]:  # Escludi colonna 2 (FORNITORE) che usa Stretch
-            self.table.resizeColumnToContents(col)
-        
-        # Imposta larghezze minime e massime per alcune colonne critiche
-        header = self.table.horizontalHeader()
-        
-        # DATA: larghezza minima per le date
-        if self.table.columnWidth(0) < 100:
-            self.table.setColumnWidth(0, 100)
-        
-        # SORGENTE: larghezza massima ragionevole
-        if self.table.columnWidth(1) > 100:
-            self.table.setColumnWidth(1, 100)
-        
-        # Colonne numeriche: larghezza minima per leggibilità
-        for col in [3, 4, 5, 6, 7]:
-            if self.table.columnWidth(col) < 80:
-                self.table.setColumnWidth(col, 80)
+    # RIMOSSO: _optimize_column_widths() per migliorare performance
+    # Il ridimensionamento è ora gestito direttamente nel metodo update_table()

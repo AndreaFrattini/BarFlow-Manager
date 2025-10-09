@@ -18,6 +18,7 @@ from .welcome_widget import WelcomeWidget
 from .analysis_widget import AnalysisWidget
 from .history_management_widget import HistoryManagementWidget
 from barflow.data.db_manager import DatabaseManager
+from barflow.data.temporary_db_manager import TemporaryDatabaseManager
 
 class MainWindow(QMainWindow):
     """Finestra principale dell'applicazione AccountFlow"""
@@ -31,8 +32,22 @@ class MainWindow(QMainWindow):
         # Inizializza database manager
         self.db_manager = DatabaseManager()
         
-        # Inizializza con dati temporanei vuoti (per tabella Transazioni e Analisi Attuale)
-        self.transactions_data = []  # Dati temporanei caricati dall'utente
+        # Inizializza database temporaneo manager
+        try:
+            self.temp_db_manager = TemporaryDatabaseManager()
+            print(f"✓ Database temporaneo inizializzato: {self.temp_db_manager.db_path}")
+            
+            # Verifica che il database sia accessibile
+            temp_count = self.temp_db_manager.get_temporary_transactions_count()
+            print(f"✓ Database temporaneo operativo con {temp_count} transazioni esistenti")
+            
+        except Exception as e:
+            print(f"✗ Errore nell'inizializzazione del database temporaneo: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(None, "Errore Database Temporaneo", 
+                               f"Impossibile inizializzare il database temporaneo:\n{e}\n\nL'applicazione verrà chiusa.")
+            sys.exit(1)
         
         # Inizializza UI
         self.init_ui()
@@ -203,6 +218,7 @@ class MainWindow(QMainWindow):
         self.nav_list.currentRowChanged.connect(self.change_section)
         self.import_widget.data_imported.connect(self.handle_data_import)
         self.transactions_widget.save_requested.connect(self.save_and_update_history)
+        self.transactions_widget.clear_temp_requested.connect(self.clear_temporary_data)
         # Deseleziona qualsiasi elemento all'avvio per mostrare la pagina di benvenuto
         self.nav_list.setCurrentRow(-1)
 
@@ -220,12 +236,34 @@ class MainWindow(QMainWindow):
             self.stacked_widget.setCurrentWidget(self.import_widget)
         elif key == "transactions":
             self.stacked_widget.setCurrentWidget(self.transactions_widget)
-            # Mostra sempre solo i dati temporanei nella tabella Transazioni
-            self.transactions_widget.update_table(self.transactions_data)
+            # Carica sempre i dati dal database temporaneo con gestione errori
+            try:
+                temp_data = self.temp_db_manager.load_all_temporary_transactions()
+                print(f"✓ Caricati {len(temp_data)} record dal database temporaneo per sezione Transazioni")
+                self.transactions_widget.update_table(temp_data)
+            except Exception as e:
+                print(f"✗ Errore nel caricamento dati temporanei per Transazioni: {e}")
+                import traceback
+                traceback.print_exc()
+                # Mostra tabella vuota per evitare crash
+                self.transactions_widget.update_table([])
+                QMessageBox.warning(self, "Errore Caricamento", 
+                                  f"Errore nel caricamento dei dati temporanei:\n{e}\n\nMostrando tabella vuota.")
         elif key == "analysis":
             self.stacked_widget.setCurrentWidget(self.analysis_widget)
-            # Analisi Attuale usa solo i dati temporanei
-            self.analysis_widget.update_data(self.transactions_data)
+            # Analisi Attuale usa i dati temporanei dal database con gestione errori
+            try:
+                temp_data = self.temp_db_manager.load_all_temporary_transactions()
+                print(f"✓ Caricati {len(temp_data)} record dal database temporaneo per Analisi")
+                self.analysis_widget.update_data(temp_data)
+            except Exception as e:
+                print(f"✗ Errore nel caricamento dati temporanei per Analisi: {e}")
+                import traceback
+                traceback.print_exc()
+                # Mostra analisi vuota per evitare crash
+                self.analysis_widget.update_data([])
+                QMessageBox.warning(self, "Errore Caricamento", 
+                                  f"Errore nel caricamento dei dati per l'analisi:\n{e}\n\nMostrando analisi vuota.")
         elif key == "historical_data_management":
             self.stacked_widget.setCurrentWidget(self.history_management_widget)
             # Carica i dati solo se non sono ancora stati caricati
@@ -250,41 +288,54 @@ class MainWindow(QMainWindow):
 
 
     def handle_data_import(self, source_type, data):
-        """Gestisce i dati importati e li aggiunge al dataset principale"""
-        # Mappa i tipi di sorgente ai valori richiesti
-        source_mapping = {
-            "Fornitore": "fornitore",
-            "POS": "pos",
-            "Manuale": "manuale"
-        }
-        
-        sorgente_value = source_mapping.get(source_type, source_type.lower())
-        import_timestamp = datetime.now().timestamp()
-        
-        for row in data:
-            # Aggiungi la colonna SORGENTE al record e timestamp di importazione
-            row['SORGENTE'] = sorgente_value
-            row['_IMPORT_TIMESTAMP'] = import_timestamp
-            self.transactions_data.append(row)
-        
-        # Salva i nuovi dati nel database
-        saved_count, duplicate_count = self.db_manager.save_transactions(data, f"import_{source_type.lower()}")
-        
-        # Il popup di successo è ora gestito in ImportWidget
-        
-        # Aggiorna la tabella delle transazioni se è la vista corrente
-        if self.stacked_widget.currentWidget() == self.transactions_widget:
-            self.transactions_widget.update_table(self.transactions_data)
-        else:
-            # Passa alla vista transazioni per mostrare i dati aggiornati
-            # Trova l'indice corretto per "transactions"
-            for i in range(self.nav_list.count()):
-                item = self.nav_list.item(i)
-                if item.data(Qt.UserRole) == "transactions":
-                    self.nav_list.setCurrentRow(i)
-                    break
-        self.transactions_widget.update_table(self.transactions_data)
-        self.analysis_widget.update_data(self.transactions_data)
+        """Gestisce i dati importati e li aggiunge al database temporaneo"""
+        try:
+            # Mappa i tipi di sorgente ai valori richiesti
+            source_mapping = {
+                "Fornitore": "fornitore",
+                "POS": "pos",
+                "Manuale": "manuale"
+            }
+            
+            sorgente_value = source_mapping.get(source_type, source_type.lower())
+            import_timestamp = datetime.now().timestamp()
+            
+            # Aggiungi la colonna SORGENTE al record
+            for row in data:
+                row['SORGENTE'] = sorgente_value
+            
+            # Salva i dati nel database temporaneo
+            added_count, duplicate_count = self.temp_db_manager.add_transactions(data, import_timestamp)
+            print(f"✓ Aggiunte {added_count} transazioni al database temporaneo (saltati {duplicate_count} duplicati)")
+            
+            # Il popup di successo è ora gestito in ImportWidget
+            
+            # Aggiorna la tabella delle transazioni se è la vista corrente
+            if self.stacked_widget.currentWidget() == self.transactions_widget:
+                temp_data = self.temp_db_manager.load_all_temporary_transactions()
+                self.transactions_widget.update_table(temp_data)
+            else:
+                # Passa alla vista transazioni per mostrare i dati aggiornati
+                # Trova l'indice corretto per "transactions"
+                for i in range(self.nav_list.count()):
+                    item = self.nav_list.item(i)
+                    if item.data(Qt.UserRole) == "transactions":
+                        self.nav_list.setCurrentRow(i)
+                        break
+            
+            # Aggiorna le viste con i dati dal database temporaneo
+            temp_data = self.temp_db_manager.load_all_temporary_transactions()
+            self.transactions_widget.update_table(temp_data)
+            self.analysis_widget.update_data(temp_data)
+            
+        except Exception as e:
+            print(f"✗ Errore nella gestione dell'importazione dati: {e}")
+            import traceback
+            traceback.print_exc()
+            QMessageBox.critical(self, "Errore Importazione", 
+                               f"Errore durante l'importazione dei dati:\n{e}")
+            # Aggiorna comunque le viste per mantenere consistenza
+            self._refresh_all_views()
 
     def export_results(self):
         """Esporta tutto lo storico in un file XLSX"""
@@ -315,9 +366,9 @@ class MainWindow(QMainWindow):
         if file_path:
             try:
                 df_hist = pd.DataFrame(historical_data)
-                df_hist['IMPORTO'] = pd.to_numeric(df_hist['IMPORTO'], errors='coerce')
-                df_hist['DATA_PARSED'] = pd.to_datetime(df_hist['DATA'], dayfirst=True, errors='coerce')
-                df_hist = df_hist.dropna(subset=['IMPORTO'])
+                df_hist['IMPORTO NETTO'] = pd.to_numeric(df_hist['IMPORTO NETTO'], errors='coerce')
+                df_hist['DATA_PARSED'] = pd.to_datetime(df_hist['DATA'], errors='coerce')
+                df_hist = df_hist.dropna(subset=['IMPORTO NETTO'])
                 
                 # Prepara il foglio "Transazioni Storico"
                 transazioni_storiche_df = df_hist.copy()
@@ -334,14 +385,29 @@ class MainWindow(QMainWindow):
                             return f"Data non valida: {original_date}"
                 
                 transazioni_storiche_df['DATA'] = transazioni_storiche_df.apply(format_hist_date, axis=1)
-                transazioni_storiche_df['IMPORTO'] = transazioni_storiche_df['IMPORTO'].apply(lambda x: f"{x:,.2f}" if pd.notna(x) else "0.00")
+                transazioni_storiche_df['IMPORTO NETTO'] = transazioni_storiche_df['IMPORTO NETTO'].apply(lambda x: f"{x:,.2f}" if pd.notna(x) else "0.00")
                 
                 # Rimuovi colonna temporanea
                 if 'DATA_PARSED' in transazioni_storiche_df.columns:
                     transazioni_storiche_df = transazioni_storiche_df.drop('DATA_PARSED', axis=1)
                 
-                # Riordina le colonne
-                colonne_ordinate = ["DATA", "SORGENTE", "PRODOTTO", "FORNITORE", "CATEGORIA", "QUANTITA'", "IMPORTO"]
+                # Riordina le colonne disponibili nel database
+                available_columns = list(transazioni_storiche_df.columns)
+                colonne_ordinate = []
+                
+                # Aggiungi le colonne nell'ordine preferito se esistono
+                preferred_order = ["DATA", "SORGENTE", "DESCRIZIONE", "FORNITORE", "NUMERO FORNITORE", 
+                                 "NUMERO OPERAZIONE POS", "IMPORTO LORDO POS", "COMMISSIONE POS", "IMPORTO NETTO"]
+                
+                for col in preferred_order:
+                    if col in available_columns:
+                        colonne_ordinate.append(col)
+                
+                # Aggiungi eventuali colonne rimanenti
+                for col in available_columns:
+                    if col not in colonne_ordinate:
+                        colonne_ordinate.append(col)
+                
                 transazioni_storiche_df = transazioni_storiche_df[colonne_ordinate]
 
                 # Esporta in Excel con un solo foglio
@@ -362,26 +428,48 @@ class MainWindow(QMainWindow):
                 )
     
     def _refresh_all_views(self):
-        """Aggiorna tutte le viste con i dati correnti."""
-        self.transactions_widget.update_table(self.transactions_data)
-        self.analysis_widget.update_data(self.transactions_data)
+        """Aggiorna tutte le viste con i dati correnti dal database temporaneo."""
+        try:
+            temp_data = self.temp_db_manager.load_all_temporary_transactions()
+            print(f"✓ Refresh viste: caricati {len(temp_data)} record dal database temporaneo")
+            self.transactions_widget.update_table(temp_data)
+            self.analysis_widget.update_data(temp_data)
+        except Exception as e:
+            print(f"✗ Errore nel refresh delle viste: {e}")
+            import traceback
+            traceback.print_exc()
+            # Inizializza con dati vuoti per evitare crash
+            self.transactions_widget.update_table([])
+            self.analysis_widget.update_data([])
+            QMessageBox.warning(self, "Errore Refresh", 
+                              f"Errore nell'aggiornamento delle viste:\n{e}\n\nMostrando dati vuoti.")
     
     def save_and_update_history(self):
-        """Salva le transazioni temporanee nello storico e svuota la tabella temporanea."""
-        if not self.transactions_data:
+        """Salva le transazioni temporanee nello storico e svuota il database temporaneo."""
+        temp_count = self.temp_db_manager.get_temporary_transactions_count()
+        
+        if temp_count == 0:
             QMessageBox.warning(self, "Nessun dato", 
-                              "Non ci sono transazioni da salvare.")
+                              "Non ci sono transazioni temporanee da salvare.")
             return
         
         try:
-            # Salva le transazioni temporanee nel database
+            # Carica tutte le transazioni temporanee
+            temp_transactions = self.temp_db_manager.load_all_temporary_transactions()
+            
+            # Rimuovi il campo _IMPORT_TIMESTAMP prima di salvare nello storico
+            for transaction in temp_transactions:
+                if '_IMPORT_TIMESTAMP' in transaction:
+                    del transaction['_IMPORT_TIMESTAMP']
+            
+            # Salva le transazioni temporanee nel database storico
             saved, duplicates = self.db_manager.save_transactions(
-                self.transactions_data, 
-                file_origin=f"Session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+                temp_transactions, 
+                file_origin=f"TempSession_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
             )
             
-            # Svuota i dati temporanei dopo il salvataggio
-            self.transactions_data = []
+            # Pulisce completamente il database temporaneo dopo il salvataggio
+            self.temp_db_manager.clear_all_temporary_transactions()
             
             # Aggiorna le viste (ora vuote per la tabella temporanea)
             self._refresh_all_views()
@@ -390,13 +478,50 @@ class MainWindow(QMainWindow):
             
             QMessageBox.information(self, "Salvataggio completato", 
                 f"Salvate {saved} nuove transazioni nello storico (saltati {duplicates} duplicati).\n"
-                f"La tabella temporanea è stata svuotata.\n"
+                f"Il database temporaneo è stato pulito completamente.\n"
                 f"Database storico contiene ora {stats['total_records']} transazioni totali.\n"
                 f"Periodo storico: {stats['date_range'][0]} - {stats['date_range'][1]}")
             
         except Exception as e:
             QMessageBox.critical(self, "Errore", 
                                f"Errore durante il salvataggio: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    def clear_temporary_data(self):
+        """Pulisce completamente i dati temporanei dopo conferma dell'utente."""
+        temp_count = self.temp_db_manager.get_temporary_transactions_count()
+        
+        if temp_count == 0:
+            QMessageBox.information(self, "Nessun dato", 
+                                  "Non ci sono transazioni temporanee da eliminare.")
+            return
+        
+        # Richiedi conferma dall'utente
+        reply = QMessageBox.question(self, "Conferma eliminazione", 
+                                   f"Sei sicuro di voler eliminare tutte le {temp_count} transazioni temporanee?\n\n"
+                                   f"Questa azione non può essere annullata.\n"
+                                   f"I dati non saranno salvati nello storico.",
+                                   QMessageBox.Yes | QMessageBox.No, 
+                                   QMessageBox.No)
+        
+        if reply == QMessageBox.Yes:
+            try:
+                # Pulisce completamente il database temporaneo
+                self.temp_db_manager.clear_all_temporary_transactions()
+                
+                # Aggiorna le viste (ora vuote)
+                self._refresh_all_views()
+                
+                QMessageBox.information(self, "Eliminazione completata", 
+                    "Tutte le transazioni temporanee sono state eliminate.\n"
+                    "Il database temporaneo è stato pulito completamente.")
+                
+            except Exception as e:
+                QMessageBox.critical(self, "Errore", 
+                                   f"Errore durante l'eliminazione: {e}")
+                import traceback
+                traceback.print_exc()
     
     def set_window_icon(self):
         """Imposta l'icona della finestra per tutte le piattaforme"""
