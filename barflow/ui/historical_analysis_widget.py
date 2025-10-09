@@ -9,6 +9,13 @@ import matplotlib.dates as mdates
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
 from barflow.data.db_manager import DatabaseManager
+from .analysis_utils import (
+    create_metric_box, 
+    create_chart_canvas, 
+    style_empty_chart, 
+    parse_date_robust,
+    update_metric_box_value
+)
 
 class HistoricalAnalysisWidget(QWidget):
     """Widget per l'analisi dei dati storici."""
@@ -28,9 +35,9 @@ class HistoricalAnalysisWidget(QWidget):
         metrics_layout = QHBoxLayout()
         metrics_layout.setSpacing(15)
         
-        self.total_gains_label = self._create_metric_box("TOTALE ENTRATE", "0.00 €", "#27AE60")
-        self.total_expenses_label = self._create_metric_box("TOTALE USCITE", "0.00 €", "#C0392B")
-        self.profit_label = self._create_metric_box("PROFITTO", "0.00 €", "#2980B9")
+        self.total_gains_label = create_metric_box("TOTALE ENTRATE", "0.00 €", "#27AE60")
+        self.total_expenses_label = create_metric_box("TOTALE USCITE", "0.00 €", "#C0392B")
+        self.profit_label = create_metric_box("PROFITTO", "0.00 €", "#2980B9")
         
         metrics_layout.addWidget(self.total_gains_label)
         metrics_layout.addWidget(self.total_expenses_label)
@@ -89,11 +96,11 @@ class HistoricalAnalysisWidget(QWidget):
         layout.setSpacing(15)
 
         # Grafico Entrate vs Uscite Mensili
-        self.monthly_chart_canvas = self._create_chart_canvas()
+        self.monthly_chart_canvas = create_chart_canvas()
         layout.addWidget(self.monthly_chart_canvas)
 
         # Grafico Performance Media Giornaliera
-        self.daily_performance_canvas = self._create_chart_canvas()
+        self.daily_performance_canvas = create_chart_canvas()
         layout.addWidget(self.daily_performance_canvas)
 
     def _setup_performance_tab(self):
@@ -103,88 +110,12 @@ class HistoricalAnalysisWidget(QWidget):
         layout.setSpacing(15)
 
         # Grafico Andamento Profitto Cumulativo (in alto)
-        self.cumulative_profit_canvas = self._create_chart_canvas()
+        self.cumulative_profit_canvas = create_chart_canvas()
         layout.addWidget(self.cumulative_profit_canvas)
 
         # Grafico Performance Medie (in basso)
-        self.average_performance_canvas = self._create_chart_canvas()
+        self.average_performance_canvas = create_chart_canvas()
         layout.addWidget(self.average_performance_canvas)
-
-    def _create_metric_box(self, title, value, color):
-        """Crea un box per una metrica specifica."""
-        frame = QFrame()
-        frame.setFrameShape(QFrame.StyledPanel)
-        frame.setFrameShadow(QFrame.Raised)
-        frame.setStyleSheet(f"""
-            QFrame {{
-                background-color: {color};
-                border-radius: 10px;
-                border: none;
-            }}
-        """)
-        
-        layout = QVBoxLayout(frame)
-        layout.setContentsMargins(5, 5, 5, 5)  # Ridotto da 20 a 15
-        layout.setSpacing(3)  # Ridotto da 10 a 8
-        layout.setAlignment(Qt.AlignCenter)
-        
-        title_label = QLabel(title)
-        title_label.setAlignment(Qt.AlignCenter)
-        title_label.setWordWrap(True)
-        title_label.setStyleSheet("""
-            color: white; 
-            font-size: 10px;
-            font-weight: bold;
-            margin: 0px;
-            padding: 2px;
-        """)
-        
-        value_label = QLabel(value)
-        value_label.setAlignment(Qt.AlignCenter)
-        value_label.setWordWrap(True)
-        value_label.setStyleSheet("""
-            color: white; 
-            font-size: 12px;
-            font-weight: bold;
-            margin: 0px;
-            padding: 2px;
-        """)
-        # Aggiungi un nome oggetto per identificare facilmente il label del valore
-        value_label.setObjectName("value_label")
-        
-        layout.addWidget(title_label)
-        layout.addWidget(value_label)
-        
-        return frame
-
-    def _create_chart_canvas(self):
-        """Crea un'area di disegno per un grafico Matplotlib con stile moderno."""
-        # Imposta lo stile moderno per matplotlib
-        try:
-            plt.style.use('seaborn-v0_8-whitegrid')
-        except:
-            try:
-                plt.style.use('seaborn-whitegrid')
-            except:
-                plt.style.use('default')
-        
-        fig, ax = plt.subplots(figsize=(8, 3))
-        fig.patch.set_facecolor('#FAFAFA')
-        ax.set_facecolor('#FFFFFF')
-        
-        # Rimuovi i bordi superiore e destro per un look più pulito
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_color('#CCCCCC')
-        ax.spines['bottom'].set_color('#CCCCCC')
-        
-        canvas = FigureCanvas(fig)
-        canvas.setStyleSheet("""
-            background-color: #FAFAFA; 
-            border-radius: 15px;
-            border: 1px solid #E0E0E0;
-        """)
-        return canvas
 
     def update_data(self):
         """Aggiorna i dati caricando le transazioni storiche dal database."""
@@ -199,22 +130,8 @@ class HistoricalAnalysisWidget(QWidget):
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             
-            # Gestione robusta delle date - supporta diversi formati
-            # Prima prova il formato con secondi
-            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-            
-            # Se ci sono valori NaT, prova il formato senza secondi
-            if df['DATA'].isna().any():
-                mask_nat = df['DATA'].isna()
-                original_data = pd.DataFrame(historical_data)['DATA']
-                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], format='%Y-%m-%d', errors='coerce')
-            
-            # Se ci sono ancora valori NaT, prova parsing automatico
-            if df['DATA'].isna().any():
-                mask_nat = df['DATA'].isna()
-                original_data = pd.DataFrame(historical_data)['DATA']
-                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], errors='coerce')
-            
+            # Applica parsing robusto delle date usando la utility function
+            df['DATA'] = df['DATA'].apply(parse_date_robust)
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
@@ -226,17 +143,10 @@ class HistoricalAnalysisWidget(QWidget):
             total_expenses = abs(df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].sum())
             profit = total_gains - total_expenses
 
-            # Aggiorna i label
-            gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
-            expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
-            profit_value_label = self.profit_label.findChild(QLabel, "value_label")
-            
-            if gains_value_label:
-                gains_value_label.setText(f"{total_gains:,.2f} €")
-            if expenses_value_label:
-                expenses_value_label.setText(f"{total_expenses:,.2f} €")
-            if profit_value_label:
-                profit_value_label.setText(f"{profit:,.2f} €")
+            # Aggiorna i label utilizzando le utility functions
+            update_metric_box_value(self.total_gains_label, f"{total_gains:,.2f} €")
+            update_metric_box_value(self.total_expenses_label, f"{total_expenses:,.2f} €")
+            update_metric_box_value(self.profit_label, f"{profit:,.2f} €")
 
             # Aggiorna i grafici
             self._update_monthly_chart(df)
@@ -278,7 +188,7 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato mensile storico da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.monthly_chart_canvas.draw()
             return
 
@@ -365,7 +275,7 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato storico da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.cumulative_profit_canvas.draw()
             return
 
@@ -457,36 +367,22 @@ class HistoricalAnalysisWidget(QWidget):
                 ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.daily_performance_canvas.draw()
                 return
 
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             
-            # Parsing delle date più robusto
-            def parse_date(date_str):
-                if pd.isna(date_str):
-                    return pd.NaT
-                try:
-                    # Prova prima con formato datetime completo
-                    return pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S')
-                except:
-                    try:
-                        # Poi con formato solo data
-                        return pd.to_datetime(date_str, format='%Y-%m-%d')
-                    except:
-                        # Infine lascia che pandas provi a interpretare automaticamente
-                        return pd.to_datetime(date_str, errors='coerce')
-            
-            df['DATA'] = df['DATA'].apply(parse_date)
+            # Applica parsing robusto delle date usando la utility function
+            df['DATA'] = df['DATA'].apply(parse_date_robust)
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
                 ax.text(0.5, 0.5, "Nessun dato valido da visualizzare", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.daily_performance_canvas.draw()
                 return
 
@@ -507,7 +403,7 @@ class HistoricalAnalysisWidget(QWidget):
                 ax.text(0.5, 0.5, "Nessuna entrata da visualizzare", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.daily_performance_canvas.draw()
                 return
 
@@ -522,7 +418,7 @@ class HistoricalAnalysisWidget(QWidget):
                 ax.text(0.5, 0.5, "Nessuna entrata nei giorni lavorativi", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.daily_performance_canvas.draw()
                 return
 
@@ -604,7 +500,7 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Errore nel caricamento dati", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.daily_performance_canvas.draw()
 
     def _update_average_performance_chart(self):
@@ -625,36 +521,22 @@ class HistoricalAnalysisWidget(QWidget):
                 ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.average_performance_canvas.draw()
                 return
 
             df = pd.DataFrame(historical_data)
             df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
             
-            # Parsing delle date più robusto
-            def parse_date(date_str):
-                if pd.isna(date_str):
-                    return pd.NaT
-                try:
-                    # Prova prima con formato datetime completo
-                    return pd.to_datetime(date_str, format='%Y-%m-%d %H:%M:%S')
-                except:
-                    try:
-                        # Poi con formato solo data
-                        return pd.to_datetime(date_str, format='%Y-%m-%d')
-                    except:
-                        # Infine lascia che pandas provi a interpretare automaticamente
-                        return pd.to_datetime(date_str, errors='coerce')
-            
-            df['DATA'] = df['DATA'].apply(parse_date)
+            # Applica parsing robusto delle date usando la utility function
+            df['DATA'] = df['DATA'].apply(parse_date_robust)
             df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
 
             if len(df) == 0:
                 ax.text(0.5, 0.5, "Nessun dato valido da visualizzare", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.average_performance_canvas.draw()
                 return
 
@@ -668,7 +550,7 @@ class HistoricalAnalysisWidget(QWidget):
                 ax.text(0.5, 0.5, f"Nessun dato per l'anno {latest_year}", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
-                self._style_empty_chart(ax)
+                style_empty_chart(ax)
                 self.average_performance_canvas.draw()
                 return
 
@@ -792,22 +674,8 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Errore nel caricamento dati", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.average_performance_canvas.draw()
-
-    def _style_empty_chart(self, ax):
-        """Applica stile moderno ai grafici vuoti."""
-        # Rimuovi i bordi superiore e destro per un look più pulito
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_color('#CCCCCC')
-        ax.spines['bottom'].set_color('#CCCCCC')
-        
-        # Rimuovi tick e etichette
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xlabel('')
-        ax.set_ylabel('')
 
     def _show_error_in_charts(self, error_message):
         """Mostra un messaggio di errore in tutti i grafici."""
@@ -820,21 +688,15 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, error_message, 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             canvas.draw()
 
     def _reset_view(self):
         """Resetta la vista quando non ci sono dati."""
-        gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
-        expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
-        profit_value_label = self.profit_label.findChild(QLabel, "value_label")
-        
-        if gains_value_label:
-            gains_value_label.setText("0.00 €")
-        if expenses_value_label:
-            expenses_value_label.setText("0.00 €")
-        if profit_value_label:
-            profit_value_label.setText("0.00 €")
+        # Reset delle metriche utilizzando le utility functions
+        update_metric_box_value(self.total_gains_label, "0.00 €")
+        update_metric_box_value(self.total_expenses_label, "0.00 €")
+        update_metric_box_value(self.profit_label, "0.00 €")
         
         # Reset di tutti i grafici
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas, 
@@ -846,5 +708,5 @@ class HistoricalAnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             canvas.draw()

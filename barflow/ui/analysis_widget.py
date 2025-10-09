@@ -5,6 +5,13 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 import numpy as np
 from .historical_analysis_widget import HistoricalAnalysisWidget
+from .analysis_utils import (
+    create_metric_box, 
+    create_chart_canvas, 
+    style_empty_chart, 
+    prepare_dataframe_for_analysis,
+    update_metric_box_value
+)
 
 class AnalysisWidget(QWidget):
     """Widget per la sezione di analisi dei dati con tab per analisi attuale e storica."""
@@ -77,9 +84,9 @@ class AnalysisWidget(QWidget):
         metrics_layout = QHBoxLayout()
         metrics_layout.setSpacing(20)
         
-        self.total_gains_label = self._create_metric_box("TOTALE ENTRATE", "0.00 €", "#27AE60")
-        self.total_expenses_label = self._create_metric_box("TOTALE USCITE", "0.00 €", "#C0392B")
-        self.profit_label = self._create_metric_box("PROFITTO", "0.00 €", "#2980B9")
+        self.total_gains_label = create_metric_box("TOTALE ENTRATE", "0.00 €", "#27AE60")
+        self.total_expenses_label = create_metric_box("TOTALE USCITE", "0.00 €", "#C0392B")
+        self.profit_label = create_metric_box("PROFITTO", "0.00 €", "#2980B9")
         
         metrics_layout.addWidget(self.total_gains_label)
         metrics_layout.addWidget(self.total_expenses_label)
@@ -96,8 +103,8 @@ class AnalysisWidget(QWidget):
         charts_layout = QHBoxLayout()
         charts_layout.setSpacing(20)
 
-        self.monthly_chart_canvas = self._create_chart_canvas()
-        self.cumulative_profit_canvas = self._create_chart_canvas()
+        self.monthly_chart_canvas = create_chart_canvas(figsize=(10, 7))
+        self.cumulative_profit_canvas = create_chart_canvas(figsize=(10, 7))
 
         charts_layout.addWidget(self.monthly_chart_canvas)
         charts_layout.addWidget(self.cumulative_profit_canvas)
@@ -197,61 +204,27 @@ class AnalysisWidget(QWidget):
 
     def update_data(self, transactions_data):
         """Aggiorna i dati e ricalcola metriche e grafici per l'analisi attuale."""
-        if not transactions_data:
+        df = prepare_dataframe_for_analysis(transactions_data)
+        
+        if df is None:
             self._reset_view()
             return
 
         try:
-            df = pd.DataFrame(transactions_data)
-            df['IMPORTO NETTO'] = pd.to_numeric(df['IMPORTO NETTO'], errors='coerce')
-            
-            # Gestione robusta delle date - prova diversi formati
-            # Prima prova il formato con secondi (quello attuale dell'app)
-            df['DATA'] = pd.to_datetime(df['DATA'], format='%Y-%m-%d %H:%M:%S', errors='coerce')
-            
-            # Se ci sono valori NaT, prova il formato senza secondi
-            if df['DATA'].isna().any():
-                mask_nat = df['DATA'].isna()
-                # Reset della colonna DATA originale per questi record
-                original_data = pd.DataFrame(transactions_data)['DATA']
-                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], format='%Y-%m-%d', errors='coerce')
-            
-            # Se ci sono ancora valori NaT, prova parsing automatico
-            if df['DATA'].isna().any():
-                mask_nat = df['DATA'].isna()
-                original_data = pd.DataFrame(transactions_data)['DATA']
-                df.loc[mask_nat, 'DATA'] = pd.to_datetime(original_data[mask_nat], errors='coerce')
-            
-            # Rimuovi righe con valori non validi
-            df = df.dropna(subset=['IMPORTO NETTO', 'DATA'])
-
-            if len(df) == 0:
-                self._reset_view()
-                return
-
-            # 1. Aggiorna le metriche
+            # Calcola le metriche
             total_gains = df[df['IMPORTO NETTO'] > 0]['IMPORTO NETTO'].sum()
-            total_expenses = abs(df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].sum())  # Valore assoluto per le spese
+            total_expenses = abs(df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].sum())
             profit = total_gains - total_expenses
 
-            # Trova e aggiorna i label dei valori usando l'objectName
-            gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
-            expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
-            profit_value_label = self.profit_label.findChild(QLabel, "value_label")
-            
-            if gains_value_label:
-                gains_value_label.setText(f"{total_gains:,.2f} €")
-            if expenses_value_label:
-                expenses_value_label.setText(f"{total_expenses:,.2f} €")
-            if profit_value_label:
-                profit_value_label.setText(f"{profit:,.2f} €")
+            # Aggiorna i label utilizzando le utility functions
+            update_metric_box_value(self.total_gains_label, f"{total_gains:,.2f} €")
+            update_metric_box_value(self.total_expenses_label, f"{total_expenses:,.2f} €")
+            update_metric_box_value(self.profit_label, f"{profit:,.2f} €")
 
-            # 2. Aggiorna il grafico mensile
+            # Aggiorna i grafici
             self._update_monthly_chart(df)
-
-            # 3. Aggiorna il grafico della performance giornaliera
             self._update_daily_performance_chart(df)
-            
+                
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati: {e}")
             import traceback
@@ -282,7 +255,7 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato mensile da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.monthly_chart_canvas.draw()
             return
 
@@ -371,7 +344,7 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.cumulative_profit_canvas.draw()
             return
 
@@ -396,7 +369,7 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessuna entrata da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.cumulative_profit_canvas.draw()
             return
 
@@ -427,7 +400,7 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato per l'analisi settimanale", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             self.cumulative_profit_canvas.draw()
             return
 
@@ -499,17 +472,10 @@ class AnalysisWidget(QWidget):
 
     def _reset_view(self):
         """Resetta la vista quando non ci sono dati."""
-        # Reset delle metriche usando l'objectName
-        gains_value_label = self.total_gains_label.findChild(QLabel, "value_label")
-        expenses_value_label = self.total_expenses_label.findChild(QLabel, "value_label")
-        profit_value_label = self.profit_label.findChild(QLabel, "value_label")
-        
-        if gains_value_label:
-            gains_value_label.setText("0.00 €")
-        if expenses_value_label:
-            expenses_value_label.setText("0.00 €")
-        if profit_value_label:
-            profit_value_label.setText("0.00 €")
+        # Reset delle metriche utilizzando le utility functions
+        update_metric_box_value(self.total_gains_label, "0.00 €")
+        update_metric_box_value(self.total_expenses_label, "0.00 €")
+        update_metric_box_value(self.profit_label, "0.00 €")
         
         # Reset dei grafici con stile moderno
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas]:
@@ -520,19 +486,5 @@ class AnalysisWidget(QWidget):
             ax.text(0.5, 0.5, "Nessun dato da visualizzare", 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=14, color='#666666', weight='bold')
-            self._style_empty_chart(ax)
+            style_empty_chart(ax)
             canvas.draw()
-
-    def _style_empty_chart(self, ax):
-        """Applica stile moderno ai grafici vuoti."""
-        # Rimuovi i bordi superiore e destro per un look più pulito
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_color('#CCCCCC')
-        ax.spines['bottom'].set_color('#CCCCCC')
-        
-        # Rimuovi tick e etichette
-        ax.set_xticks([])
-        ax.set_yticks([])
-        ax.set_xlabel('')
-        ax.set_ylabel('')

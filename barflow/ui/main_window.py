@@ -484,12 +484,3 @@ class MainWindow(QMainWindow):
                     return os.path.join(icons_dir, file)
         
         return None
-    
-    def _get_platform_info(self):
-        """Metodo di utilità per ottenere informazioni sulla piattaforma (opzionale)"""
-        return {
-            'system': platform.system(),
-            'release': platform.release(),
-            'machine': platform.machine(),
-            'python_version': sys.version
-        }
