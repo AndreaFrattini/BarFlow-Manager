@@ -4,7 +4,7 @@ Utility functions comuni per i widget di analisi
 import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
-from PySide6.QtWidgets import QLabel, QFrame, QVBoxLayout
+from PySide6.QtWidgets import QLabel, QFrame, QVBoxLayout, QPushButton, QMessageBox
 from PySide6.QtCore import Qt
 
 def parse_date_robust(date_str):
@@ -177,3 +177,62 @@ def update_metric_box_value(metric_box, new_value):
     value_label = metric_box.findChild(QLabel, "value_label")
     if value_label:
         value_label.setText(new_value)
+
+def create_info_button(tooltip_text):
+    """
+    Crea un piccolo bottone circolare con "i" per mostrare informazioni.
+    
+    Args:
+        tooltip_text: Testo da mostrare nel popup quando si clicca il bottone
+        
+    Returns:
+        QPushButton: Il bottone info configurato
+    """
+    btn = QPushButton("i")
+    btn.setFixedSize(18, 18)
+    btn.setStyleSheet("""
+        QPushButton {
+            background-color: #3498DB;
+            color: white;
+            border-radius: 9px;
+            border: 1px solid #2980B9;
+            font-size: 10px;
+            font-weight: bold;
+            padding: 0px;
+        }
+        QPushButton:hover {
+            background-color: #2980B9;
+            border: 1px solid #1F618D;
+        }
+        QPushButton:pressed {
+            background-color: #1F618D;
+        }
+    """)
+    
+    # Connetti il click al popup
+    btn.clicked.connect(lambda: show_info_popup("Informazioni Grafico", tooltip_text))
+    
+    return btn
+
+def show_info_popup(title, message):
+    """
+    Mostra un popup informativo.
+    
+    Args:
+        title: Titolo del popup
+        message: Messaggio da visualizzare
+    """
+    msg_box = QMessageBox()
+    msg_box.setWindowTitle(title)
+    msg_box.setText(message)
+    msg_box.setIcon(QMessageBox.Information)
+    msg_box.setStyleSheet("""
+        QMessageBox {
+            background-color: #FAFAFA;
+        }
+        QMessageBox QLabel {
+            color: #2C3E50;
+            font-size: 12px;
+        }
+    """)
+    msg_box.exec()

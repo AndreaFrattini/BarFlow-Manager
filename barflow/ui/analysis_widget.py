@@ -10,7 +10,8 @@ from .analysis_utils import (
     create_chart_canvas, 
     style_empty_chart, 
     prepare_dataframe_for_analysis,
-    update_metric_box_value
+    update_metric_box_value,
+    create_info_button
 )
 
 class AnalysisWidget(QWidget):
@@ -103,11 +104,82 @@ class AnalysisWidget(QWidget):
         charts_layout = QHBoxLayout()
         charts_layout.setSpacing(20)
 
+        # Container per il primo grafico con titolo e bottone info
+        monthly_chart_container = QWidget()
+        monthly_container_layout = QVBoxLayout(monthly_chart_container)
+        monthly_container_layout.setContentsMargins(0, 0, 0, 0)
+        monthly_container_layout.setSpacing(5)
+        
+        # Layout per titolo + bottone info
+        monthly_title_layout = QHBoxLayout()
+        monthly_title_layout.setContentsMargins(10, 5, 10, 0)
+        monthly_title_layout.setSpacing(8)
+        
+        monthly_title_label = QLabel("Entrate vs Uscite Mensili")
+        monthly_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        monthly_info_btn = create_info_button(
+            "Questo grafico mostra la somma delle entrate (in verde) e delle uscite (in rosso) per il periodo di riferimento mostrato sull'asse delle x (asse orizzontale)."
+        )
+        
+        # Centra il gruppo titolo + bottone
+        monthly_title_layout.addStretch()
+        monthly_title_layout.addWidget(monthly_title_label)
+        monthly_title_layout.addWidget(monthly_info_btn)
+        monthly_title_layout.addStretch()
+        
         self.monthly_chart_canvas = create_chart_canvas(figsize=(10, 7))
-        self.cumulative_profit_canvas = create_chart_canvas(figsize=(10, 7))
+        
+        monthly_container_layout.addLayout(monthly_title_layout)
+        monthly_container_layout.addWidget(self.monthly_chart_canvas)
+        
+        # Container per il secondo grafico con titolo e bottone info
+        performance_chart_container = QWidget()
+        performance_container_layout = QVBoxLayout(performance_chart_container)
+        performance_container_layout.setContentsMargins(0, 0, 0, 0)
+        performance_container_layout.setSpacing(5)
+        
+        # Layout per titolo + bottone info del secondo grafico
+        performance_title_layout = QHBoxLayout()
+        performance_title_layout.setContentsMargins(10, 5, 10, 0)
+        performance_title_layout.setSpacing(8)
+        
+        performance_title_label = QLabel("Performance Media Giornaliera")
+        performance_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        performance_info_btn = create_info_button(
+            """Questo grafico mostra le entrate medie per ogni giorno della settimana (barre verdi) nel periodo di tempo mostrato sull'asse orizzontale del grafico a sinistra 'Entrate vs Uscite Mensili'. La linea tratteggiata rossa orizzontale invece è la media delle spese giornaliere.
 
-        charts_layout.addWidget(self.monthly_chart_canvas)
-        charts_layout.addWidget(self.cumulative_profit_canvas)
+Come si legge questo grafico? Come dice la legenda in alto a sinistra, la linea rossa, detta 'Obiettivo Pareggio' è l'obiettivo da raggiungere o superare per andare in guadagno ogni singolo giorno della settimana. In poche parole, ogni volta che apri la serranda spendi la cifra indicata dalla linea rossa e per andare in positivo devi superarla ogni giorno della settimana.
+
+Questo grafico risulta estremamente utile per capire quali sono i giorni della settimana in cui vi sono più e meno incassi, identificando così punti forti e deboli dell'attività."""
+        )
+        
+        # Centra il gruppo titolo + bottone
+        performance_title_layout.addStretch()
+        performance_title_layout.addWidget(performance_title_label)
+        performance_title_layout.addWidget(performance_info_btn)
+        performance_title_layout.addStretch()
+        
+        self.cumulative_profit_canvas = create_chart_canvas(figsize=(10, 7))
+        
+        performance_container_layout.addLayout(performance_title_layout)
+        performance_container_layout.addWidget(self.cumulative_profit_canvas)
+
+        charts_layout.addWidget(monthly_chart_container)
+        charts_layout.addWidget(performance_chart_container)
 
         layout.addLayout(charts_layout)
         
@@ -289,8 +361,6 @@ class AnalysisWidget(QWidget):
         add_value_labels(bars2, monthly_summary['uscite'])
 
         # Styling moderno
-        ax.set_title('Entrate vs Uscite Mensili', fontsize=16, fontweight='bold', 
-                    color='#2C3E50', pad=20)
         ax.set_ylabel('Importo (€)', fontsize=12, color='#34495E', fontweight='bold')
         ax.set_xlabel('Mese', fontsize=12, color='#34495E', fontweight='bold')
         
@@ -434,9 +504,6 @@ class AnalysisWidget(QWidget):
                       linewidth=2, alpha=0.8, label=f'Obiettivo Pareggio: €{media_uscite_giornaliera:,.0f}')
 
         # Styling moderno
-        ax.set_title('Performance Media Giornaliera', fontsize=16, fontweight='bold', 
-                    color='#2C3E50', pad=20)
-        
         ax.set_ylabel('Media Entrate Giornaliere (€)', fontsize=12, color='#34495E', fontweight='bold')
         ax.set_xlabel('Giorno della Settimana', fontsize=12, color='#34495E', fontweight='bold')
 

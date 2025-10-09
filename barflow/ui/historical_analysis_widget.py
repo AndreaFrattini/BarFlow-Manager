@@ -14,7 +14,8 @@ from .analysis_utils import (
     create_chart_canvas, 
     style_empty_chart, 
     parse_date_robust,
-    update_metric_box_value
+    update_metric_box_value,
+    create_info_button
 )
 
 class HistoricalAnalysisWidget(QWidget):
@@ -95,13 +96,85 @@ class HistoricalAnalysisWidget(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
+        # Container per il primo grafico con titolo e bottone info
+        monthly_chart_container = QWidget()
+        monthly_container_layout = QVBoxLayout(monthly_chart_container)
+        monthly_container_layout.setContentsMargins(0, 0, 0, 0)
+        monthly_container_layout.setSpacing(5)
+        
+        # Layout per titolo + bottone info
+        monthly_title_layout = QHBoxLayout()
+        monthly_title_layout.setContentsMargins(10, 5, 10, 0)
+        monthly_title_layout.setSpacing(8)
+        
+        monthly_title_label = QLabel("Entrate vs Uscite Mensili")
+        monthly_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        monthly_info_btn = create_info_button(
+            "Questo grafico mostra la somma delle entrate (in verde) e delle uscite (in rosso) per il periodo di riferimento mostrato sull'asse delle x (asse orizzontale)."
+        )
+        
+        # Centra il gruppo titolo + bottone
+        monthly_title_layout.addStretch()
+        monthly_title_layout.addWidget(monthly_title_label)
+        monthly_title_layout.addWidget(monthly_info_btn)
+        monthly_title_layout.addStretch()
+        
         # Grafico Entrate vs Uscite Mensili
         self.monthly_chart_canvas = create_chart_canvas()
-        layout.addWidget(self.monthly_chart_canvas)
+        
+        monthly_container_layout.addLayout(monthly_title_layout)
+        monthly_container_layout.addWidget(self.monthly_chart_canvas)
+        
+        layout.addWidget(monthly_chart_container)
 
+        # Container per il secondo grafico con titolo e bottone info
+        performance_chart_container = QWidget()
+        performance_container_layout = QVBoxLayout(performance_chart_container)
+        performance_container_layout.setContentsMargins(0, 0, 0, 0)
+        performance_container_layout.setSpacing(5)
+        
+        # Layout per titolo + bottone info del secondo grafico
+        performance_title_layout = QHBoxLayout()
+        performance_title_layout.setContentsMargins(10, 5, 10, 0)
+        performance_title_layout.setSpacing(8)
+        
+        performance_title_label = QLabel("Performance Media Giornaliera")
+        performance_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        performance_info_btn = create_info_button(
+            """Questo grafico mostra le entrate medie per ogni giorno della settimana (barre verdi) nel periodo di tempo mostrato sull'asse orizzontale del grafico a sinistra 'Entrate vs Uscite Mensili'. La linea tratteggiata rossa orizzontale invece è la media delle spese giornaliere.
+
+Come si legge questo grafico? Come dice la legenda in alto a sinistra, la linea rossa, detta 'Obiettivo Pareggio' è l'obiettivo da raggiungere o superare per andare in guadagno ogni singolo giorno della settimana. In poche parole, ogni volta che apri la serranda spendi la cifra indicata dalla linea rossa e per andare in positivo devi superarla ogni giorno della settimana.
+
+Questo grafico risulta estremamente utile per capire quali sono i giorni della settimana in cui vi sono più e meno incassi, identificando così punti forti e deboli dell'attività."""
+        )
+        
+        # Centra il gruppo titolo + bottone
+        performance_title_layout.addStretch()
+        performance_title_layout.addWidget(performance_title_label)
+        performance_title_layout.addWidget(performance_info_btn)
+        performance_title_layout.addStretch()
+        
         # Grafico Performance Media Giornaliera
         self.daily_performance_canvas = create_chart_canvas()
-        layout.addWidget(self.daily_performance_canvas)
+        
+        performance_container_layout.addLayout(performance_title_layout)
+        performance_container_layout.addWidget(self.daily_performance_canvas)
+        
+        layout.addWidget(performance_chart_container)
 
     def _setup_performance_tab(self):
         """Configura la tab 'Andamento Temporale'."""
@@ -109,13 +182,83 @@ class HistoricalAnalysisWidget(QWidget):
         layout.setContentsMargins(10, 10, 10, 10)
         layout.setSpacing(15)
 
+        # Container per il primo grafico con titolo e bottone info
+        cumulative_chart_container = QWidget()
+        cumulative_container_layout = QVBoxLayout(cumulative_chart_container)
+        cumulative_container_layout.setContentsMargins(0, 0, 0, 0)
+        cumulative_container_layout.setSpacing(0.1)
+        
+        # Layout per titolo + bottone info
+        cumulative_title_layout = QHBoxLayout()
+        cumulative_title_layout.setContentsMargins(10, 0.3, 10, 0)
+        cumulative_title_layout.setSpacing(8)
+        
+        cumulative_title_label = QLabel("Andamento Profitto Cumulativo")
+        cumulative_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        cumulative_info_btn = create_info_button(
+            "Questo grafico mostra quanto profitto è stato fatto ogni giorno. Se sotto lo zero significa che la giornata è stata chiusa in perdita, altrimenti se sopra lo zero, in guadagno."
+        )
+        
+        # Centra il gruppo titolo + bottone
+        cumulative_title_layout.addStretch()
+        cumulative_title_layout.addWidget(cumulative_title_label)
+        cumulative_title_layout.addWidget(cumulative_info_btn)
+        cumulative_title_layout.addStretch()
+        
         # Grafico Andamento Profitto Cumulativo (in alto)
         self.cumulative_profit_canvas = create_chart_canvas()
-        layout.addWidget(self.cumulative_profit_canvas)
+        
+        cumulative_container_layout.addLayout(cumulative_title_layout)
+        cumulative_container_layout.addWidget(self.cumulative_profit_canvas)
+        
+        layout.addWidget(cumulative_chart_container)
 
+        # Container per il secondo grafico con titolo e bottone info
+        average_chart_container = QWidget()
+        average_container_layout = QVBoxLayout(average_chart_container)
+        average_container_layout.setContentsMargins(0, 0, 0, 0)
+        average_container_layout.setSpacing(0.1)
+        
+        # Layout per titolo + bottone info del secondo grafico
+        average_title_layout = QHBoxLayout()
+        average_title_layout.setContentsMargins(10, 0.3, 10, 0)
+        average_title_layout.setSpacing(8)
+        
+        average_title_label = QLabel("Performance Medie 2025")
+        average_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 16px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        average_info_btn = create_info_button(
+            """Questo grafico mostra la media delle entrate e delle uscite nel tempo e quindi evidenzia il 'trend' che la tua attività sta avendo: se le linee verde o blu stanno salendo vuol dire che in media le entrate e i profitti stanno aumentando nel tempo (viceversa se stanno scendendo) e stesso discorso per le uscite, quando la linea va verso l'alto vuol dire che le uscite stanno aumentando nel tempo (viceversa diminuiscono se la linea va verso il basso).
+
+Risulta dunque un grafico molto interessante per capire se il piano di business che si sta attuando è sostenibile nel tempo o se poterà alla bancarotta."""
+        )
+        
+        # Centra il gruppo titolo + bottone
+        average_title_layout.addStretch()
+        average_title_layout.addWidget(average_title_label)
+        average_title_layout.addWidget(average_info_btn)
+        average_title_layout.addStretch()
+        
         # Grafico Performance Medie (in basso)
         self.average_performance_canvas = create_chart_canvas()
-        layout.addWidget(self.average_performance_canvas)
+        
+        average_container_layout.addLayout(average_title_layout)
+        average_container_layout.addWidget(self.average_performance_canvas)
+        
+        layout.addWidget(average_chart_container)
 
     def update_data(self):
         """Aggiorna i dati caricando le transazioni storiche dal database."""
@@ -227,8 +370,6 @@ class HistoricalAnalysisWidget(QWidget):
                        fontsize=8, fontweight='bold', color='#333333')
 
         # Styling moderno
-        ax.set_title('Entrate vs Uscite Mensili', fontsize=14, fontweight='bold', 
-                    color='#2C3E50', pad=15)
         ax.set_ylabel('IMPORTO NETTO (€)', fontsize=10, color='#34495E', fontweight='bold')
         ax.set_xlabel('Mese', fontsize=10, color='#34495E', fontweight='bold')
         
@@ -312,8 +453,6 @@ class HistoricalAnalysisWidget(QWidget):
         ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=1.5, alpha=0.7)
         
         # Styling moderno
-        ax.set_title('Andamento Profitto Cumulativo', fontsize=14, fontweight='bold', 
-                    color='#2C3E50', pad=15)
         ax.set_ylabel('Profitto (€)', fontsize=10, color='#34495E', fontweight='bold')
         ax.set_xlabel('Data', fontsize=10, color='#34495E', fontweight='bold')
         
@@ -472,8 +611,6 @@ class HistoricalAnalysisWidget(QWidget):
                           linewidth=2, alpha=0.8, label=f'Obiettivo Pareggio: €{media_uscite_giornaliera:,.0f}')
 
             # Styling moderno
-            ax.set_title('Performance Media Giornaliera', fontsize=14, fontweight='bold', 
-                        color='#2C3E50', pad=15)
             ax.set_ylabel('Media Entrate Giornaliere (€)', fontsize=10, color='#34495E', fontweight='bold')
             ax.set_xlabel('Giorno della Settimana', fontsize=10, color='#34495E', fontweight='bold')
 
@@ -643,8 +780,6 @@ class HistoricalAnalysisWidget(QWidget):
             ax.axhline(y=0, color='#95A5A6', linestyle='--', linewidth=1, alpha=0.5)
             
             # Styling moderno
-            ax.set_title(f'Performance Medie {latest_year}', fontsize=14, fontweight='bold', 
-                        color='#2C3E50', pad=15)
             ax.set_ylabel('IMPORTO NETTO Medio (€)', fontsize=10, color='#34495E', fontweight='bold')
             ax.set_xlabel('Mese', fontsize=10, color='#34495E', fontweight='bold')
             
