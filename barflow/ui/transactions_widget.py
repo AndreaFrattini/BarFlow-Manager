@@ -22,9 +22,9 @@ class TransactionsWidget(QWidget):
         main_layout.setContentsMargins(10, 10, 10, 10)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(8)
+        self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
-            "DATA", "SORGENTE", "FORNITORE", "NUMERO FORNITORE", 
+            "DATA", "SORGENTE", "DESCRIZIONE", "FORNITORE", "NUMERO FORNITORE", 
             "NUMERO OPERAZIONE POS", "IMPORTO LORDO POS", "COMMISSIONE POS", "IMPORTO NETTO"
         ])
         
@@ -36,12 +36,18 @@ class TransactionsWidget(QWidget):
         # Alcune colonne hanno contenuto più importante e necessitano più spazio
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # DATA - contenuto fisso
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # SORGENTE - contenuto limitato
-        header.setSectionResizeMode(2, QHeaderView.Stretch)  # FORNITORE - può essere lungo
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # NUMERO FORNITORE - contenuto numerico
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO OPERAZIONE POS - contenuto numerico
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # IMPORTO LORDO POS - contenuto numerico
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # COMMISSIONE POS - contenuto numerico
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # IMPORTO NETTO - contenuto numerico
+        header.setSectionResizeMode(2, QHeaderView.Stretch)  # DESCRIZIONE - può essere lungo
+        header.setSectionResizeMode(3, QHeaderView.Stretch)  # FORNITORE - può essere lungo
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO FORNITORE - contenuto numerico
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # NUMERO OPERAZIONE POS - contenuto numerico
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # IMPORTO LORDO POS - contenuto numerico
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # COMMISSIONE POS - contenuto numerico
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # IMPORTO NETTO - contenuto numerico
+        
+        # Imposta larghezza minima per la colonna DESCRIZIONE per evitare che l'intestazione sia tagliata
+        self.table.setColumnWidth(2, 120)  # Larghezza minima per DESCRIZIONE
+        header.setSectionResizeMode(2, QHeaderView.Interactive)  # Permette ridimensionamento manuale
+        header.setMinimumSectionSize(120)  # Larghezza minima globale per evitare compressione eccessiva
         
         # Rimuovi dimensioni fisse - ora la tabella si adatta al contenitore
         self.table.setMinimumHeight(400)  # Altezza minima ridotta ma ragionevole
@@ -160,6 +166,15 @@ class TransactionsWidget(QWidget):
                 sorgente_item = QTableWidgetItem(str(transaction.get('SORGENTE', '')))
                 sorgente_item.setTextAlignment(Qt.AlignCenter)
                 
+                # Per la descrizione, trunca il testo se troppo lungo per migliore visualizzazione
+                descrizione_text = str(transaction.get('DESCRIZIONE', '') or '')
+                if len(descrizione_text) > 25:
+                    descrizione_text = descrizione_text[:22] + "..."
+                descrizione_item = QTableWidgetItem(descrizione_text)
+                descrizione_item.setTextAlignment(Qt.AlignCenter)
+                # Imposta il tooltip con il testo completo
+                descrizione_item.setToolTip(str(transaction.get('DESCRIZIONE', '') or ''))
+                
                 # Per il fornitore, trunca il testo se troppo lungo per migliore visualizzazione
                 fornitore_text = str(transaction.get('FORNITORE', '') or '')
                 if len(fornitore_text) > 20:
@@ -222,18 +237,19 @@ class TransactionsWidget(QWidget):
 
                 self.table.setItem(row, 0, data_item)
                 self.table.setItem(row, 1, sorgente_item)
-                self.table.setItem(row, 2, fornitore_item)
-                self.table.setItem(row, 3, numero_fornitore_item)
-                self.table.setItem(row, 4, numero_pos_item)
-                self.table.setItem(row, 5, importo_lordo_item)
-                self.table.setItem(row, 6, commissione_item)
-                self.table.setItem(row, 7, importo_netto_item)
+                self.table.setItem(row, 2, descrizione_item)
+                self.table.setItem(row, 3, fornitore_item)
+                self.table.setItem(row, 4, numero_fornitore_item)
+                self.table.setItem(row, 5, numero_pos_item)
+                self.table.setItem(row, 6, importo_lordo_item)
+                self.table.setItem(row, 7, commissione_item)
+                self.table.setItem(row, 8, importo_netto_item)
                 
             except Exception as e:
                 # Log dell'errore e crea una riga vuota piuttosto che crashare
                 print(f"Errore nella creazione della riga {row}: {e}")
                 # Crea celle vuote per evitare il crash
-                for col in range(8):
+                for col in range(9):
                     empty_item = QTableWidgetItem("")
                     empty_item.setTextAlignment(Qt.AlignCenter)
                     self.table.setItem(row, col, empty_item)

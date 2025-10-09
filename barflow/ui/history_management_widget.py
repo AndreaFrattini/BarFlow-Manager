@@ -69,7 +69,7 @@ class HistoryManagementWidget(QWidget):
         filter_grid.setSpacing(15)  # Spaziatura aumentata per migliore leggibilità
         filter_grid.setContentsMargins(15, 15, 15, 15)
 
-        # === PRIMA RIGA: Data, Sorgente, Fornitore ===
+        # === PRIMA RIGA: Data, Sorgente, Descrizione, Fornitore ===
         
         # Data
         data_label = QLabel("📅 Data:")
@@ -85,6 +85,13 @@ class HistoryManagementWidget(QWidget):
         self.source_filter.addItems(["", "fornitore", "pos", "manuale"])
         self.source_filter.setStyleSheet(self._get_input_style())
 
+        # Descrizione
+        descrizione_label = QLabel("📝 Descrizione:")
+        descrizione_label.setMinimumWidth(120)
+        self.descrizione_filter = QLineEdit()
+        self.descrizione_filter.setPlaceholderText("Descrizione...")
+        self.descrizione_filter.setStyleSheet(self._get_input_style())
+
         # Fornitore
         supplier_label = QLabel("🏪 Fornitore:")
         supplier_label.setMinimumWidth(120)
@@ -97,8 +104,10 @@ class HistoryManagementWidget(QWidget):
         filter_grid.addWidget(self.date_filter, 0, 1)
         filter_grid.addWidget(source_label, 0, 2)
         filter_grid.addWidget(self.source_filter, 0, 3)
-        filter_grid.addWidget(supplier_label, 0, 4)
-        filter_grid.addWidget(self.supplier_filter, 0, 5)
+        filter_grid.addWidget(descrizione_label, 0, 4)
+        filter_grid.addWidget(self.descrizione_filter, 0, 5)
+        filter_grid.addWidget(supplier_label, 0, 6)
+        filter_grid.addWidget(self.supplier_filter, 0, 7)
 
         # === SECONDA RIGA: Numero Fornitore, Numero Operazione POS, Importo Netto ===
         
@@ -148,17 +157,19 @@ class HistoryManagementWidget(QWidget):
         filter_grid.addWidget(numero_pos_label, 1, 2)
         filter_grid.addWidget(self.numero_pos_filter, 1, 3)
         filter_grid.addWidget(importo_label, 1, 4)
-        filter_grid.addWidget(importo_widget, 1, 5)
+        filter_grid.addWidget(importo_widget, 1, 5, 1, 3)  # Span su 3 colonne per l'importo
 
         # Imposta stretch ottimizzato per sfruttare tutto lo spazio orizzontale
-        # Colonne dispari (0,2,4) = etichette con larghezza fissa
-        # Colonne pari (1,3,5) = campi input che si espandono
+        # Colonne dispari (0,2,4,6) = etichette con larghezza fissa
+        # Colonne pari (1,3,5,7) = campi input che si espandono
         filter_grid.setColumnStretch(0, 0)  # Etichetta Data - fissa
         filter_grid.setColumnStretch(1, 2)  # Campo Data - espandibile
         filter_grid.setColumnStretch(2, 0)  # Etichetta Sorgente - fissa  
         filter_grid.setColumnStretch(3, 2)  # Campo Sorgente - espandibile
-        filter_grid.setColumnStretch(4, 0)  # Etichetta Fornitore/Importo - fissa
-        filter_grid.setColumnStretch(5, 2)  # Campo Fornitore/Importo - espandibile
+        filter_grid.setColumnStretch(4, 0)  # Etichetta Descrizione - fissa
+        filter_grid.setColumnStretch(5, 2)  # Campo Descrizione - espandibile
+        filter_grid.setColumnStretch(6, 0)  # Etichetta Fornitore - fissa
+        filter_grid.setColumnStretch(7, 2)  # Campo Fornitore - espandibile
 
         group_layout.addLayout(filter_grid)
         parent_layout.addWidget(filter_group)
@@ -192,9 +203,9 @@ class HistoryManagementWidget(QWidget):
 
         # Tabella
         self.table = QTableWidget()
-        self.table.setColumnCount(8)
+        self.table.setColumnCount(9)
         self.table.setHorizontalHeaderLabels([
-            "DATA", "SORGENTE", "FORNITORE", "NUMERO FORNITORE", 
+            "DATA", "SORGENTE", "DESCRIZIONE", "FORNITORE", "NUMERO FORNITORE", 
             "NUMERO OPERAZIONE POS", "IMPORTO LORDO POS", "COMMISSIONE POS", "IMPORTO NETTO"
         ])
         
@@ -205,12 +216,17 @@ class HistoryManagementWidget(QWidget):
         # Imposta dimensioni responsive per le colonne (come TransactionsWidget)
         header.setSectionResizeMode(0, QHeaderView.ResizeToContents)  # DATA - contenuto fisso
         header.setSectionResizeMode(1, QHeaderView.ResizeToContents)  # SORGENTE - contenuto limitato
-        header.setSectionResizeMode(2, QHeaderView.Stretch)           # FORNITORE - può essere lungo
-        header.setSectionResizeMode(3, QHeaderView.ResizeToContents)  # NUMERO FORNITORE - contenuto numerico
-        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO OPERAZIONE POS - contenuto numerico
-        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # IMPORTO LORDO POS - contenuto numerico
-        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # COMMISSIONE POS - contenuto numerico
-        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # IMPORTO NETTO - contenuto numerico
+        header.setSectionResizeMode(2, QHeaderView.Interactive)       # DESCRIZIONE - può essere lungo, ridimensionabile
+        header.setSectionResizeMode(3, QHeaderView.Stretch)           # FORNITORE - può essere lungo
+        header.setSectionResizeMode(4, QHeaderView.ResizeToContents)  # NUMERO FORNITORE - contenuto numerico
+        header.setSectionResizeMode(5, QHeaderView.ResizeToContents)  # NUMERO OPERAZIONE POS - contenuto numerico
+        header.setSectionResizeMode(6, QHeaderView.ResizeToContents)  # IMPORTO LORDO POS - contenuto numerico
+        header.setSectionResizeMode(7, QHeaderView.ResizeToContents)  # COMMISSIONE POS - contenuto numerico
+        header.setSectionResizeMode(8, QHeaderView.ResizeToContents)  # IMPORTO NETTO - contenuto numerico
+        
+        # Imposta larghezza minima per la colonna DESCRIZIONE
+        self.table.setColumnWidth(2, 120)  # Larghezza minima per DESCRIZIONE
+        header.setMinimumSectionSize(120)  # Larghezza minima globale
         
         # Rimuovi dimensioni fisse - ora la tabella si adatta al contenitore
         self.table.setMinimumHeight(400)  # Altezza minima ragionevole
@@ -426,6 +442,14 @@ class HistoryManagementWidget(QWidget):
                 sorgente_item = QTableWidgetItem(str(record.get('SORGENTE', '')))
                 sorgente_item.setTextAlignment(Qt.AlignCenter)
                 
+                # Descrizione
+                descrizione_text = str(record.get('DESCRIZIONE', '') or '')
+                if len(descrizione_text) > 25:
+                    descrizione_text = descrizione_text[:22] + "..."
+                descrizione_item = QTableWidgetItem(descrizione_text)
+                descrizione_item.setTextAlignment(Qt.AlignCenter)
+                descrizione_item.setToolTip(str(record.get('DESCRIZIONE', '') or ''))
+                
                 # Fornitore
                 fornitore_text = str(record.get('FORNITORE', '') or '')
                 if len(fornitore_text) > 20:
@@ -488,18 +512,19 @@ class HistoryManagementWidget(QWidget):
 
                 self.table.setItem(row, 0, data_item)
                 self.table.setItem(row, 1, sorgente_item)
-                self.table.setItem(row, 2, fornitore_item)
-                self.table.setItem(row, 3, numero_fornitore_item)
-                self.table.setItem(row, 4, numero_pos_item)
-                self.table.setItem(row, 5, importo_lordo_item)
-                self.table.setItem(row, 6, commissione_item)
-                self.table.setItem(row, 7, importo_netto_item)
+                self.table.setItem(row, 2, descrizione_item)
+                self.table.setItem(row, 3, fornitore_item)
+                self.table.setItem(row, 4, numero_fornitore_item)
+                self.table.setItem(row, 5, numero_pos_item)
+                self.table.setItem(row, 6, importo_lordo_item)
+                self.table.setItem(row, 7, commissione_item)
+                self.table.setItem(row, 8, importo_netto_item)
                 
             except Exception as e:
                 # Log dell'errore e crea una riga vuota piuttosto che crashare
                 print(f"Errore nella creazione della riga {row}: {e}")
                 # Crea celle vuote per evitare il crash
-                for col in range(8):
+                for col in range(9):  # Aggiornato a 9 colonne
                     empty_item = QTableWidgetItem("")
                     empty_item.setTextAlignment(Qt.AlignCenter)
                     self.table.setItem(row, col, empty_item)
@@ -526,6 +551,12 @@ class HistoryManagementWidget(QWidget):
         if self.source_filter.currentText():
             conditions.append("sorgente = ?")
             params.append(self.source_filter.currentText())
+
+        # Filtro descrizione
+        descrizione_text = self.descrizione_filter.text().strip()
+        if descrizione_text:
+            conditions.append("descrizione LIKE ?")
+            params.append(f"%{descrizione_text}%")
 
         # Filtro fornitore
         supplier_text = self.supplier_filter.text().strip()

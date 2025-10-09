@@ -267,6 +267,9 @@ class MainWindow(QMainWindow):
             row['_IMPORT_TIMESTAMP'] = import_timestamp
             self.transactions_data.append(row)
         
+        # Salva i nuovi dati nel database
+        saved_count, duplicate_count = self.db_manager.save_transactions(data, f"import_{source_type.lower()}")
+        
         # Il popup di successo è ora gestito in ImportWidget
         
         # Aggiorna la tabella delle transazioni se è la vista corrente

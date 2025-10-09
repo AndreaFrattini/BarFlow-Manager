@@ -43,9 +43,10 @@ def initialize_and_migrate_db():
     logger.info("Database initialization complete")
 
 class DatabaseManager:
-    def __init__(self, db_path="historical_data/barflow_history.db"):
-        self.db_path = Path(db_path)
-        self.db_path.parent.mkdir(exist_ok=True)
+    def __init__(self, db_path=None):
+        # Usa lo stesso path del sistema di migrazione se non specificato
+        self.db_path = Path(db_path) if db_path else get_db_path()
+        self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._init_database()
     
     def _init_database(self):
@@ -56,6 +57,7 @@ class DatabaseManager:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     data TEXT NOT NULL,
                     sorgente TEXT NOT NULL,
+                    descrizione TEXT,
                     fornitore TEXT,
                     numero_fornitore TEXT,
                     numero_operazione_pos TEXT,
@@ -80,7 +82,7 @@ class DatabaseManager:
     
     def _generate_record_hash(self, record):
         """Genera un hash univoco per il record per evitare duplicati."""
-        key = f"{record['DATA']}{record['SORGENTE']}{record.get('FORNITORE', '')}{record.get('NUMERO FORNITORE', '')}{record.get('NUMERO OPERAZIONE POS', '')}{record['IMPORTO NETTO']}"
+        key = f"{record['DATA']}{record['SORGENTE']}{record.get('DESCRIZIONE', '')}{record.get('FORNITORE', '')}{record.get('NUMERO FORNITORE', '')}{record.get('NUMERO OPERAZIONE POS', '')}{record['IMPORTO NETTO']}"
         return hashlib.md5(key.encode()).hexdigest()
     
     def save_transactions(self, transactions_data, file_origin=None):
@@ -95,12 +97,13 @@ class DatabaseManager:
                 try:
                     conn.execute("""
                         INSERT INTO transactions 
-                        (data, sorgente, fornitore, numero_fornitore, numero_operazione_pos, 
+                        (data, sorgente, descrizione, fornitore, numero_fornitore, numero_operazione_pos, 
                          importo_lordo_pos, commissione_pos, importo_netto, hash_record, file_origine)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         record['DATA'],
                         record['SORGENTE'],
+                        record.get('DESCRIZIONE'),
                         record.get('FORNITORE'),
                         record.get('NUMERO FORNITORE'),
                         record.get('NUMERO OPERAZIONE POS'),
@@ -129,9 +132,17 @@ class DatabaseManager:
             # Costruisci la query dinamicamente basandoti sulle colonne esistenti
             select_clauses = [
                 "data as DATA",
-                "sorgente as SORGENTE", 
-                "fornitore as FORNITORE"
+                "sorgente as SORGENTE"
             ]
+            
+            # Aggiungi DESCRIZIONE se esiste
+            if "descrizione" in existing_columns:
+                select_clauses.append("descrizione as DESCRIZIONE")
+            else:
+                select_clauses.append("NULL as DESCRIZIONE")
+                
+            # Aggiungi FORNITORE
+            select_clauses.append("fornitore as FORNITORE")
             
             # Aggiungi colonne opzionali solo se esistono
             optional_columns = [
@@ -164,7 +175,9 @@ class DatabaseManager:
                 logger.error(f"Errore nel caricamento transazioni: {e}")
                 # Fallback: carica solo le colonne essenziali
                 fallback_query = """
-                    SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
+                    SELECT data as DATA, sorgente as SORGENTE, 
+                           COALESCE(descrizione, '') as DESCRIZIONE,
+                           fornitore as FORNITORE,
                            importo_netto as `IMPORTO NETTO`,
                            NULL as `NUMERO FORNITORE`,
                            NULL as `NUMERO OPERAZIONE POS`,
@@ -188,9 +201,17 @@ class DatabaseManager:
             # Costruisci la query dinamicamente basandoti sulle colonne esistenti
             select_clauses = [
                 "data as DATA",
-                "sorgente as SORGENTE", 
-                "fornitore as FORNITORE"
+                "sorgente as SORGENTE"
             ]
+            
+            # Aggiungi DESCRIZIONE se esiste
+            if "descrizione" in existing_columns:
+                select_clauses.append("descrizione as DESCRIZIONE")
+            else:
+                select_clauses.append("NULL as DESCRIZIONE")
+                
+            # Aggiungi FORNITORE
+            select_clauses.append("fornitore as FORNITORE")
             
             # Aggiungi colonne opzionali solo se esistono
             optional_columns = [
@@ -226,6 +247,7 @@ class DatabaseManager:
                 fallback_query = """
                     SELECT data as DATA, sorgente as SORGENTE, fornitore as FORNITORE,
                            importo_netto as `IMPORTO NETTO`,
+                           NULL as `DESCRIZIONE`,
                            NULL as `NUMERO FORNITORE`,
                            NULL as `NUMERO OPERAZIONE POS`,
                            NULL as `IMPORTO LORDO POS`,

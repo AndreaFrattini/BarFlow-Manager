@@ -17,6 +17,7 @@ class ManualInputDialog(QDialog):
         self.date_edit.setCalendarPopup(True)
         self.date_edit.setDisplayFormat("yyyy-MM-dd hh:mm:ss")
         
+        self.descrizione_edit = QLineEdit()
         self.supplier_edit = QLineEdit()
         self.supplier_number_edit = QLineEdit()
         self.pos_operation_edit = QLineEdit()
@@ -31,6 +32,7 @@ class ManualInputDialog(QDialog):
         self.net_amount_edit.setDecimals(2)
         
         self.layout.addRow("Data:", self.date_edit)
+        self.layout.addRow("Descrizione:", self.descrizione_edit)
         self.layout.addRow("Fornitore:", self.supplier_edit)
         self.layout.addRow("Numero Fornitore:", self.supplier_number_edit)
         self.layout.addRow("Numero Operazione POS:", self.pos_operation_edit)
@@ -48,6 +50,7 @@ class ManualInputDialog(QDialog):
         """Restituisce i dati inseriti nel dialogo."""
         return {
             'DATA': self.date_edit.dateTime().toString("yyyy-MM-dd hh:mm:ss"),
+            'DESCRIZIONE': self.descrizione_edit.text() or None,
             'FORNITORE': self.supplier_edit.text() or None,
             'NUMERO FORNITORE': self.supplier_number_edit.text() or None,
             'NUMERO OPERAZIONE POS': self.pos_operation_edit.text() or None,
@@ -183,6 +186,7 @@ class ImportWidget(QWidget):
             
             transaction = {
                 'DATA': data_formatted,
+                'DESCRIZIONE': None,  # I dati dei fornitori non hanno descrizione
                 'FORNITORE': row.get('Fornitore'),
                 'NUMERO FORNITORE': str(row.get('Numero Rif.', '')) if row.get('Numero Rif.') is not None else None,
                 'NUMERO OPERAZIONE POS': None,
@@ -209,6 +213,7 @@ class ImportWidget(QWidget):
             
             transaction = {
                 'DATA': data_formatted,
+                'DESCRIZIONE': None,  # I dati POS non hanno descrizione
                 'FORNITORE': None,
                 'NUMERO FORNITORE': None,
                 'NUMERO OPERAZIONE POS': str(row.get('Numero operazione', '')),  # Converti sempre in stringa
@@ -235,6 +240,7 @@ class ImportWidget(QWidget):
 
                 transaction = {
                     'DATA': data['DATA'],
+                    'DESCRIZIONE': data['DESCRIZIONE'],
                     'FORNITORE': data['FORNITORE'],
                     'NUMERO FORNITORE': data['NUMERO FORNITORE'],
                     'NUMERO OPERAZIONE POS': data['NUMERO OPERAZIONE POS'],
