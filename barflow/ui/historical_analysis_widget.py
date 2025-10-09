@@ -86,6 +86,11 @@ class HistoricalAnalysisWidget(QWidget):
         self._setup_performance_tab()
         self.tab_widget.addTab(self.performance_tab, "Andamento Temporale")
         
+        # Tab "Analisi per Fornitore"
+        self.supplier_tab = QWidget()
+        self._setup_supplier_tab()
+        self.tab_widget.addTab(self.supplier_tab, "Analisi per Fornitore")
+        
         main_layout.addWidget(self.tab_widget)
         
         # Non caricare automaticamente i dati - verranno caricati solo quando necessario
@@ -260,6 +265,87 @@ Risulta dunque un grafico molto interessante per capire se il piano di business 
         
         layout.addWidget(average_chart_container)
 
+    def _setup_supplier_tab(self):
+        """Configura la tab 'Analisi per Fornitore'."""
+        layout = QHBoxLayout(self.supplier_tab)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(15)
+
+        # Container per il primo grafico con titolo e bottone info - Top Fornitori per Spesa
+        top_suppliers_container = QWidget()
+        top_suppliers_layout = QVBoxLayout(top_suppliers_container)
+        top_suppliers_layout.setContentsMargins(0, 0, 0, 0)
+        top_suppliers_layout.setSpacing(2)
+        
+        # Layout per titolo + bottone info
+        top_suppliers_title_layout = QHBoxLayout()
+        top_suppliers_title_layout.setContentsMargins(10, 3, 10, 0)
+        top_suppliers_title_layout.setSpacing(8)
+        
+        top_suppliers_title_label = QLabel("Top Fornitori per Spesa")
+        top_suppliers_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        top_suppliers_info_btn = create_info_button(
+            "Questo grafico mostra i fornitori che costano di più in termini di spesa totale nel periodo analizzato. Ti aiuta a identificare i fornitori che hanno il maggiore impatto sui costi dell'attività e a valutare possibili ottimizzazioni o negoziazioni."
+        )
+        
+        # Centra il gruppo titolo + bottone
+        top_suppliers_title_layout.addStretch()
+        top_suppliers_title_layout.addWidget(top_suppliers_title_label)
+        top_suppliers_title_layout.addWidget(top_suppliers_info_btn)
+        top_suppliers_title_layout.addStretch()
+        
+        # Grafico Top Fornitori per Spesa
+        self.top_suppliers_canvas = create_chart_canvas()
+        
+        top_suppliers_layout.addLayout(top_suppliers_title_layout)
+        top_suppliers_layout.addWidget(self.top_suppliers_canvas)
+        
+        # Container per il secondo grafico con titolo e bottone info - Frequenza Ordini per Fornitore
+        supplier_frequency_container = QWidget()
+        supplier_frequency_layout = QVBoxLayout(supplier_frequency_container)
+        supplier_frequency_layout.setContentsMargins(0, 0, 0, 0)
+        supplier_frequency_layout.setSpacing(2)
+        
+        # Layout per titolo + bottone info del secondo grafico
+        frequency_title_layout = QHBoxLayout()
+        frequency_title_layout.setContentsMargins(10, 3, 10, 0)
+        frequency_title_layout.setSpacing(8)
+        
+        frequency_title_label = QLabel("Frequenza Ordini per Fornitore")
+        frequency_title_label.setStyleSheet("""
+            color: #2C3E50;
+            font-size: 20px;
+            font-weight: bold;
+            margin: 0px;
+            padding: 0px;
+        """)
+        
+        frequency_info_btn = create_info_button(
+            "Questo grafico mostra da quali fornitori ci si rifornisce più spesso, contando il numero di transazioni/ordini effettuati. Ti aiuta a identificare i partner commerciali più frequenti e a valutare la diversificazione dei fornitori per ridurre i rischi di dipendenza."
+        )
+        
+        # Centra il gruppo titolo + bottone
+        frequency_title_layout.addStretch()
+        frequency_title_layout.addWidget(frequency_title_label)
+        frequency_title_layout.addWidget(frequency_info_btn)
+        frequency_title_layout.addStretch()
+        
+        # Grafico Frequenza Ordini per Fornitore
+        self.supplier_frequency_canvas = create_chart_canvas()
+        
+        supplier_frequency_layout.addLayout(frequency_title_layout)
+        supplier_frequency_layout.addWidget(self.supplier_frequency_canvas)
+        
+        layout.addWidget(top_suppliers_container)
+        layout.addWidget(supplier_frequency_container)
+
     def update_data(self):
         """Aggiorna i dati caricando le transazioni storiche dal database."""
         try:
@@ -296,6 +382,7 @@ Risulta dunque un grafico molto interessante per capire se il piano di business 
             self._update_cumulative_profit_chart(df)
             self._update_daily_performance_chart()
             self._update_average_performance_chart()
+            self._update_supplier_charts(df)
                 
         except Exception as e:
             print(f"Errore nell'aggiornamento dei dati storici: {e}")
@@ -825,7 +912,8 @@ Risulta dunque un grafico molto interessante per capire se il piano di business 
     def _show_error_in_charts(self, error_message):
         """Mostra un messaggio di errore in tutti i grafici."""
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas, 
-                      self.daily_performance_canvas, self.average_performance_canvas]:
+                      self.daily_performance_canvas, self.average_performance_canvas,
+                      self.top_suppliers_canvas, self.supplier_frequency_canvas]:
             canvas.figure.clear()
             canvas.figure.patch.set_facecolor('#FAFAFA')
             ax = canvas.figure.add_subplot(111)
@@ -833,6 +921,158 @@ Risulta dunque un grafico molto interessante per capire se il piano di business 
             ax.text(0.5, 0.5, error_message, 
                    ha='center', va='center', transform=ax.transAxes,
                    fontsize=12, color='#E74C3C', weight='bold')
+            style_empty_chart(ax)
+            canvas.draw()
+
+    def _update_supplier_charts(self, df):
+        """Aggiorna i grafici di analisi per fornitore."""
+        # Filtra solo le spese (importi negativi) con fornitori
+        expenses_df = df[(df['IMPORTO NETTO'] < 0) & (df['FORNITORE'].notna()) & (df['FORNITORE'] != '')].copy()
+        
+        if len(expenses_df) == 0:
+            # Se non ci sono dati sui fornitori, mostra grafici vuoti
+            self._reset_supplier_charts()
+            return
+        
+        # Aggiorna entrambi i grafici
+        self._update_top_suppliers_chart(expenses_df)
+        self._update_supplier_frequency_chart(expenses_df)
+
+    def _update_top_suppliers_chart(self, expenses_df):
+        """Aggiorna il grafico dei top fornitori per spesa totale."""
+        # Pulisci la figura esistente
+        self.top_suppliers_canvas.figure.clear()
+        ax = self.top_suppliers_canvas.figure.add_subplot(111)
+        
+        # Imposta colore di sfondo
+        self.top_suppliers_canvas.figure.patch.set_facecolor('#FAFAFA')
+        ax.set_facecolor('#FFFFFF')
+
+        # Calcola la spesa totale per fornitore (valore assoluto)
+        supplier_totals = expenses_df.groupby('FORNITORE')['IMPORTO NETTO'].sum().abs().sort_values(ascending=True)
+        
+        # Prendi i top 10 fornitori
+        top_suppliers = supplier_totals.tail(10)
+        
+        if len(top_suppliers) == 0:
+            ax.text(0.5, 0.5, "Nessun dato sui fornitori", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, color='#666666', weight='bold')
+            style_empty_chart(ax)
+            self.top_suppliers_canvas.draw()
+            return
+
+        # Tronca i nomi dei fornitori se troppo lunghi
+        supplier_names = [name[:30] + '...' if len(name) > 30 else name for name in top_suppliers.index]
+        
+        # Crea il grafico a barre orizzontali
+        bars = ax.barh(range(len(top_suppliers)), top_suppliers.values, 
+                      color='#E74C3C', alpha=0.8, edgecolor='white', linewidth=1)
+
+        # Aggiungi valori alla fine delle barre
+        for i, (bar, value) in enumerate(zip(bars, top_suppliers.values)):
+            width = bar.get_width()
+            ax.text(width + (max(top_suppliers.values) * 0.01), bar.get_y() + bar.get_height()/2,
+                   f'€{value:,.0f}', ha='left', va='center', 
+                   fontsize=9, fontweight='bold', color='#333333')
+
+        # Styling moderno
+        ax.set_ylabel('Fornitore', fontsize=10, color='#34495E', fontweight='bold')
+        ax.set_xlabel('Spesa Totale (€)', fontsize=10, color='#34495E', fontweight='bold')
+        
+        # Imposta le etichette dell'asse Y
+        ax.set_yticks(range(len(top_suppliers)))
+        ax.set_yticklabels(supplier_names, fontsize=8, color='#2C3E50')
+        
+        # Griglia elegante
+        ax.grid(axis='x', linestyle='--', alpha=0.3, color='#BDC3C7')
+        ax.set_axisbelow(True)
+        
+        # Rimuovi bordi superiore e destro
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#BDC3C7')
+        ax.spines['bottom'].set_color('#BDC3C7')
+        
+        # Formattazione asse X
+        ax.xaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+        ax.tick_params(colors='#2C3E50', which='both')
+        
+        self.top_suppliers_canvas.figure.tight_layout(pad=1.5)
+        self.top_suppliers_canvas.draw()
+
+    def _update_supplier_frequency_chart(self, expenses_df):
+        """Aggiorna il grafico della frequenza degli ordini per fornitore."""
+        # Pulisci la figura esistente
+        self.supplier_frequency_canvas.figure.clear()
+        ax = self.supplier_frequency_canvas.figure.add_subplot(111)
+        
+        # Imposta colore di sfondo
+        self.supplier_frequency_canvas.figure.patch.set_facecolor('#FAFAFA')
+        ax.set_facecolor('#FFFFFF')
+
+        # Conta il numero di transazioni per fornitore
+        supplier_frequency = expenses_df['FORNITORE'].value_counts().sort_values(ascending=True)
+        
+        # Prendi i top 10 fornitori per frequenza
+        top_frequency = supplier_frequency.tail(10)
+        
+        if len(top_frequency) == 0:
+            ax.text(0.5, 0.5, "Nessun dato sulla frequenza ordini", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, color='#666666', weight='bold')
+            style_empty_chart(ax)
+            self.supplier_frequency_canvas.draw()
+            return
+
+        # Tronca i nomi dei fornitori se troppo lunghi
+        supplier_names = [name[:30] + '...' if len(name) > 30 else name for name in top_frequency.index]
+        
+        # Crea il grafico a barre orizzontali
+        bars = ax.barh(range(len(top_frequency)), top_frequency.values, 
+                      color='#3498DB', alpha=0.8, edgecolor='white', linewidth=1)
+
+        # Aggiungi valori alla fine delle barre
+        for i, (bar, value) in enumerate(zip(bars, top_frequency.values)):
+            width = bar.get_width()
+            ax.text(width + (max(top_frequency.values) * 0.01), bar.get_y() + bar.get_height()/2,
+                   f'{value}', ha='left', va='center', 
+                   fontsize=9, fontweight='bold', color='#333333')
+
+        # Styling moderno
+        ax.set_ylabel('Fornitore', fontsize=10, color='#34495E', fontweight='bold')
+        ax.set_xlabel('Numero di Ordini', fontsize=10, color='#34495E', fontweight='bold')
+        
+        # Imposta le etichette dell'asse Y
+        ax.set_yticks(range(len(top_frequency)))
+        ax.set_yticklabels(supplier_names, fontsize=8, color='#2C3E50')
+        
+        # Griglia elegante
+        ax.grid(axis='x', linestyle='--', alpha=0.3, color='#BDC3C7')
+        ax.set_axisbelow(True)
+        
+        # Rimuovi bordi superiore e destro
+        ax.spines['top'].set_visible(False)
+        ax.spines['right'].set_visible(False)
+        ax.spines['left'].set_color('#BDC3C7')
+        ax.spines['bottom'].set_color('#BDC3C7')
+        
+        # Formattazione asse X
+        ax.tick_params(colors='#2C3E50', which='both')
+        
+        self.supplier_frequency_canvas.figure.tight_layout(pad=1.5)
+        self.supplier_frequency_canvas.draw()
+
+    def _reset_supplier_charts(self):
+        """Resetta i grafici dei fornitori quando non ci sono dati."""
+        for canvas in [self.top_suppliers_canvas, self.supplier_frequency_canvas]:
+            canvas.figure.clear()
+            canvas.figure.patch.set_facecolor('#FAFAFA')
+            ax = canvas.figure.add_subplot(111)
+            ax.set_facecolor('#FFFFFF')
+            ax.text(0.5, 0.5, "Nessun dato sui fornitori", 
+                   ha='center', va='center', transform=ax.transAxes,
+                   fontsize=12, color='#666666', weight='bold')
             style_empty_chart(ax)
             canvas.draw()
 
@@ -845,7 +1085,8 @@ Risulta dunque un grafico molto interessante per capire se il piano di business 
         
         # Reset di tutti i grafici
         for canvas in [self.monthly_chart_canvas, self.cumulative_profit_canvas, 
-                      self.daily_performance_canvas, self.average_performance_canvas]:
+                      self.daily_performance_canvas, self.average_performance_canvas,
+                      self.top_suppliers_canvas, self.supplier_frequency_canvas]:
             canvas.figure.clear()
             canvas.figure.patch.set_facecolor('#FAFAFA')
             ax = canvas.figure.add_subplot(111)
