@@ -390,11 +390,15 @@ class HistoricalAnalysisWidget(QWidget):
             df['DayOfWeek'] = df['DATA'].dt.dayofweek
             df['DayName'] = df['DATA'].dt.day_name()
 
-            # Calcola la media delle uscite totali per la linea di riferimento
-            # Considera solo le uscite e calcola la media giornaliera su tutti i giorni con dati
-            uscite_totali = df[df['IMPORTO NETTO'] < 0]['IMPORTO NETTO'].abs().sum()
-            giorni_unici = len(df['DATA'].dt.date.unique())
-            media_uscite_giornaliera = uscite_totali / giorni_unici if giorni_unici > 0 else 0
+            # CALCOLO CORRETTO della media uscite giornaliera
+            # Considera solo i giorni che hanno effettivamente uscite, non tutti i giorni del periodo
+            uscite_df = df[df['IMPORTO NETTO'] < 0].copy()
+            if len(uscite_df) > 0:
+                # Raggruppa per data e somma le uscite giornaliere
+                uscite_per_giorno = uscite_df.groupby(uscite_df['DATA'].dt.date)['IMPORTO NETTO'].sum().abs()
+                media_uscite_giornaliera = uscite_per_giorno.mean()
+            else:
+                media_uscite_giornaliera = 0
 
             # Filtra solo le entrate (importi positivi) 
             entrate_df = df[df['IMPORTO NETTO'] > 0].copy()
@@ -407,59 +411,65 @@ class HistoricalAnalysisWidget(QWidget):
                 self.daily_performance_canvas.draw()
                 return
 
-            # CALCOLO CORRETTO: Somma le entrate per ogni giorno specifico, poi calcola la media per giorno della settimana
-            # 1. Raggruppa per DATA e DayOfWeek e somma le entrate giornaliere
-            entrate_per_giorno = entrate_df.groupby(['DATA', 'DayOfWeek'])['IMPORTO NETTO'].sum().reset_index()
+            # ANALISI PERFORMANCE PER GIORNO DELLA SETTIMANA (METODOLOGIA CORRETTA)
+            # 1. Raggruppa le entrate per giorno specifico e giorno della settimana
+            entrate_per_giorno = entrate_df.groupby([entrate_df['DATA'].dt.date, 'DayOfWeek'])['IMPORTO NETTO'].sum().reset_index()
             
-            # 2. Escludi lunedì (DayOfWeek = 0) e calcola la media delle entrate giornaliere per giorno della settimana
-            entrate_lavorative = entrate_per_giorno[entrate_per_giorno['DayOfWeek'] != 0]
+            # 2. Calcola la media delle entrate per ogni giorno della settimana
+            # Questo ci dice quanto si guadagna in media ogni lunedì, martedì, ecc.
+            performance_settimanale = entrate_per_giorno.groupby('DayOfWeek')['IMPORTO NETTO'].mean().reset_index()
             
-            if len(entrate_lavorative) == 0:
-                ax.text(0.5, 0.5, "Nessuna entrata nei giorni lavorativi", 
+            # 3. Mappa i numeri dei giorni ai nomi in italiano
+            giorni_map = {
+                0: 'Lunedì', 
+                1: 'Martedì', 
+                2: 'Mercoledì', 
+                3: 'Giovedì', 
+                4: 'Venerdì', 
+                5: 'Sabato', 
+                6: 'Domenica'
+            }
+            performance_settimanale['DayName'] = performance_settimanale['DayOfWeek'].map(giorni_map)
+            
+            # 4. Ordina per giorno della settimana (Lunedì = 0, Domenica = 6)
+            performance_settimanale = performance_settimanale.sort_values('DayOfWeek')
+            
+            if len(performance_settimanale) == 0:
+                ax.text(0.5, 0.5, "Nessun dato per l'analisi settimanale", 
                        ha='center', va='center', transform=ax.transAxes,
                        fontsize=12, color='#666666', weight='bold')
                 style_empty_chart(ax)
                 self.daily_performance_canvas.draw()
                 return
 
-            # 3. Calcola la media delle entrate giornaliere per ogni giorno della settimana
-            giorni_lavorativi = entrate_lavorative.groupby('DayOfWeek')['IMPORTO NETTO'].mean().reset_index()
-            
-            # Mappa i numeri dei giorni ai nomi completi
-            giorni_map = {1: 'Martedì', 2: 'Mercoledì', 3: 'Giovedì', 4: 'Venerdì', 5: 'Sabato', 6: 'Domenica'}
-            giorni_lavorativi['DayName'] = giorni_lavorativi['DayOfWeek'].map(giorni_map)
-            
-            # Ordina per giorno della settimana
-            giorni_lavorativi = giorni_lavorativi.sort_values('DayOfWeek')
-
-            # Crea il grafico a barre (colore verde per coerenza con altri grafici)
-            bars = ax.bar(giorni_lavorativi['DayName'], giorni_lavorativi['IMPORTO NETTO'], 
-                         color='#27AE60', alpha=0.8, edgecolor='white', linewidth=1)
+            # Crea il grafico a barre per giorni della settimana
+            bars = ax.bar(performance_settimanale['DayName'], performance_settimanale['IMPORTO NETTO'], 
+                         color='#27AE60', alpha=0.8, edgecolor='white', linewidth=2)
 
             # Aggiungi valori sopra le barre
-            for bar, value in zip(bars, giorni_lavorativi['IMPORTO NETTO']):
+            for bar, value in zip(bars, performance_settimanale['IMPORTO NETTO']):
                 height = bar.get_height()
                 ax.annotate(f'€{value:,.0f}',
                            xy=(bar.get_x() + bar.get_width() / 2, height),
                            xytext=(0, 3),  # 3 points vertical offset
                            textcoords="offset points",
                            ha='center', va='bottom',
-                           fontsize=8, fontweight='bold', color='#333333')
+                           fontsize=10, fontweight='bold', color='#333333')
 
             # Calcola il range appropriato per l'asse Y
-            max_entrate = giorni_lavorativi['IMPORTO NETTO'].max()
-            min_entrate = giorni_lavorativi['IMPORTO NETTO'].min()
+            max_entrate = performance_settimanale['IMPORTO NETTO'].max()
+            min_entrate = performance_settimanale['IMPORTO NETTO'].min()
             
             # Imposta i limiti dell'asse Y per rendere visibili le barre
             # Usa un range che mostri bene sia le entrate che la linea obiettivo
-            y_max = max(max_entrate * 1.1, media_uscite_giornaliera * 1.1) if media_uscite_giornaliera > 0 else max_entrate * 1.2
+            y_max = max(max_entrate * 1.15, media_uscite_giornaliera * 1.1) if media_uscite_giornaliera > 0 else max_entrate * 1.2
             y_min = min_entrate * 0.9
             ax.set_ylim(y_min, y_max)
             
             # Aggiungi la linea rossa orizzontale per la media uscite
             if media_uscite_giornaliera > 0:
-                ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='-', 
-                          linewidth=2, alpha=0.7, label=f'Spesa media giornaliera: €{media_uscite_giornaliera:,.0f}')
+                ax.axhline(y=media_uscite_giornaliera, color='#E74C3C', linestyle='--', 
+                          linewidth=2, alpha=0.8, label=f'Obiettivo Pareggio: €{media_uscite_giornaliera:,.0f}')
 
             # Styling moderno
             ax.set_title('Performance Media Giornaliera', fontsize=14, fontweight='bold', 

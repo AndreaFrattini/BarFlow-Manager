@@ -606,8 +606,10 @@ class HistoryManagementWidget(QWidget):
             return
 
         try:
-            # Conta i record da eliminare
-            db_path = Path("historical_data/barflow_history.db")
+            # Usa lo stesso database del DatabaseManager
+            from barflow.data.db_manager import get_db_path
+            db_path = get_db_path()
+            
             with sqlite3.connect(db_path) as conn:
                 where_clause = " AND ".join(conditions)
                 count_query = f"SELECT COUNT(*) FROM transactions WHERE {where_clause}"
@@ -660,7 +662,10 @@ class HistoryManagementWidget(QWidget):
 
         if reply2 == QMessageBox.Yes:
             try:
-                db_path = Path("historical_data/barflow_history.db")
+                # Usa lo stesso database del DatabaseManager
+                from barflow.data.db_manager import get_db_path
+                db_path = get_db_path()
+                
                 with sqlite3.connect(db_path) as conn:
                     count = conn.execute("SELECT COUNT(*) FROM transactions").fetchone()[0]
                     conn.execute("DELETE FROM transactions")
