@@ -34,6 +34,16 @@ class MainWindow(QMainWindow):
         
         # Inizializza database temporaneo manager
         try:
+            # Debug: stampa informazioni sui percorsi utilizzati
+            from barflow.utils import (get_application_directory, get_data_directory, 
+                                     get_app_data_directory, is_frozen_app)
+            
+            print(f"🔍 Debug percorsi applicazione:")
+            print(f"   - App frozen (distribuita): {is_frozen_app()}")
+            print(f"   - Directory applicazione: {get_application_directory()}")
+            print(f"   - Directory dati: {get_data_directory()}")
+            print(f"   - Directory app data: {get_app_data_directory()}")
+            
             self.temp_db_manager = TemporaryDatabaseManager()
             print(f"✓ Database temporaneo inizializzato: {self.temp_db_manager.db_path}")
             
@@ -528,41 +538,26 @@ class MainWindow(QMainWindow):
         icon_filename = self._get_platform_icon_filename()
         icon_path = None
         
-        # Percorso base alle icone - gestisce sia ambiente di sviluppo che app pacchettizzata
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        barflow_dir = os.path.dirname(current_dir)
+        # Utilizza il sistema di percorsi centralizzato per garantire la portabilità
+        from barflow.utils import get_resources_directory
+        resources_dir = get_resources_directory()
+        icons_dir = resources_dir / 'icons'
         
-        # Lista di possibili percorsi da provare in ordine di priorità
-        possible_paths = [
-            # Struttura di sviluppo
-            os.path.join(os.path.dirname(barflow_dir), 'resources', 'icons'),
-            # Struttura app pacchettizzata - risorse accanto al modulo barflow
-            os.path.join(barflow_dir, 'resources', 'icons'),
-            # Struttura Briefcase - risorse nella directory principale dell'app
-            os.path.join(os.path.dirname(os.path.dirname(barflow_dir)), 'resources', 'icons'),
-            # Struttura Briefcase alternativa - risorse nella directory app
-            os.path.join(os.path.dirname(barflow_dir), 'app', 'resources', 'icons'),
-        ]
-        
-        for icons_dir in possible_paths:            
-            if not os.path.exists(icons_dir):
-                continue
-                
-            test_icon_path = os.path.join(icons_dir, icon_filename)
-            if os.path.exists(test_icon_path):
+        if icons_dir.exists():
+            test_icon_path = icons_dir / icon_filename
+            if test_icon_path.exists():
                 icon_path = test_icon_path
-                break
             else:
                 # Prova formati alternativi
-                alt_icon_path = self._find_available_icon(icons_dir)
+                alt_icon_path = self._find_available_icon(str(icons_dir))
                 if alt_icon_path:
                     icon_path = alt_icon_path
-                    break
         
         # Carica l'icona se trovata
-        if icon_path and os.path.exists(icon_path):
+        if icon_path and (isinstance(icon_path, str) and os.path.exists(icon_path) or 
+                         hasattr(icon_path, 'exists') and icon_path.exists()):
             try:
-                icon = QIcon(icon_path)
+                icon = QIcon(str(icon_path))
                 # Imposta l'icona della finestra (barra del titolo)
                 self.setWindowIcon(icon)
                 # Imposta l'icona dell'applicazione (taskbar)

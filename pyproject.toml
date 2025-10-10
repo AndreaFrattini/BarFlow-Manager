@@ -47,7 +47,7 @@ finanziaria di attività commerciali. Offre import dati, analisi, reportistica e
 gestione dello storico transazioni."""
 
 sources = ["barflow"]
-main_module = "barflow.__main__"
+main_module = "barflow.main"
 console_app = false
 resources = ["barflow/resources"]
 
@@ -66,7 +66,7 @@ requires = [
 # Configurazioni specifiche per Windows
 [tool.briefcase.app.barflow.windows]
 installer_type = "msi"
-icon = "barflow/resources/icons/icon.ico"
+icon = "barflow/resources/icons/icon"
 license = "LICENSE"
 system_installer = true
 sign_tool = false

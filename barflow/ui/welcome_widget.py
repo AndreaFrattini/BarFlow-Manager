@@ -35,14 +35,13 @@ class WelcomeWidget(QWidget):
         logo_label = QLabel()
         logo_label.setAlignment(Qt.AlignCenter)
         
-        # Costruisci il percorso del logo in modo robusto
-        # Partendo dal file corrente (__file__), vai alla directory barflow e poi a resources/logo
-        current_file_dir = os.path.dirname(os.path.abspath(__file__))  # barflow/ui
-        barflow_dir = os.path.dirname(current_file_dir)  # barflow
-        logo_path = os.path.join(barflow_dir, 'resources', 'logo', 'logo.png')
+        # Costruisci il percorso del logo utilizzando il sistema di percorsi centralizzato
+        from barflow.utils import get_resources_directory
+        resources_dir = get_resources_directory()
+        logo_path = resources_dir / 'logo' / 'logo.png'
         
-        if os.path.exists(logo_path):
-            pixmap = QPixmap(logo_path)
+        if logo_path.exists():
+            pixmap = QPixmap(str(logo_path))
             # Riduci la dimensione del logo se necessario, mantenendo l'aspect ratio
             logo_label.setPixmap(pixmap.scaled(400, 400, Qt.KeepAspectRatio, Qt.SmoothTransformation))
         else:

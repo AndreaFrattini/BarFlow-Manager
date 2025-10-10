@@ -7,19 +7,15 @@ import pandas as pd
 import logging
 import os
 from pathlib import Path
+from barflow.utils import get_data_directory
 
 logger = logging.getLogger(__name__)
 
 def get_temp_db_path() -> Path:
     """Ottieni il percorso del database temporaneo nella cartella historical_data dell'applicazione"""
-    # Trova la root dell'applicazione (dove si trova il file main.py)
-    current_dir = Path(__file__).parent.parent.parent  # Da barflow/data/ torna alla root
-    historical_data_dir = current_dir / "historical_data"
-    
-    # Crea la cartella se non esiste
-    historical_data_dir.mkdir(parents=True, exist_ok=True)
-    
-    return historical_data_dir / "temporary_transactions.db"
+    # Utilizza il sistema di percorsi centralizzato per garantire la portabilità
+    data_directory = get_data_directory()
+    return data_directory / "temporary_transactions.db"
 
 class TemporaryDatabaseManager:
     """Manager per il database temporaneo delle transazioni importate dall'utente."""

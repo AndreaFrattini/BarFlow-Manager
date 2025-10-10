@@ -1,4 +1,4 @@
-from appdirs import user_data_dir
+from barflow.utils import get_app_data_directory
 from .py_sqlite_migrator import PySQLiteMigrator
 import shutil
 import importlib.resources
@@ -14,10 +14,10 @@ APP_AUTHOR = "BarFlowTeam"
 logger = logging.getLogger(__name__)
 
 def get_db_path() -> Path:
-    """Ottieni il percorso del database nell'area dati utente del sistema"""
-    data_dir = Path(user_data_dir(APP_NAME, APP_AUTHOR))
-    data_dir.mkdir(parents=True, exist_ok=True)
-    return data_dir / "barflow_history.db"
+    """Ottieni il percorso del database nell'area dati dell'applicazione"""
+    # Utilizza il sistema di percorsi centralizzato per garantire la portabilità
+    app_data_dir = get_app_data_directory()
+    return app_data_dir / "barflow_history.db"
 
 def initialize_and_migrate_db():
     """Inizializza e aggiorna il database"""
@@ -36,10 +36,45 @@ def initialize_and_migrate_db():
                     logger.info("No template found, creating empty database")
         except (FileNotFoundError, ImportError):
             logger.info("No template available, will create empty database")
+    
+    # Assicurati che la struttura base esista
+    with sqlite3.connect(db_path) as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                data TEXT NOT NULL,
+                sorgente TEXT NOT NULL,
+                descrizione TEXT,
+                fornitore TEXT,
+                numero_fornitore TEXT,
+                numero_operazione_pos TEXT,
+                importo_lordo_pos REAL,
+                commissione_pos REAL,
+                importo_netto REAL NOT NULL,
+                hash_record TEXT UNIQUE,
+                data_inserimento TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                file_origine TEXT
+            )
+        """)
+        
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_data ON transactions(data);
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_sorgente ON transactions(sorgente);
+        """)
+        conn.execute("""
+            CREATE INDEX IF NOT EXISTS idx_hash ON transactions(hash_record);
+        """)
 
-    # Applica le migrazioni
-    migrator = PySQLiteMigrator(str(db_path), "barflow.migrations")
-    migrator.apply_migrations()
+    # Applica le migrazioni solo se necessarie
+    try:
+        migrator = PySQLiteMigrator(str(db_path), "barflow.migrations")
+        migrator.apply_migrations()
+        logger.info("Database migrations applied successfully")
+    except Exception as e:
+        logger.warning(f"Migration failed, but basic structure exists: {e}")
+    
     logger.info("Database initialization complete")
 
 class DatabaseManager:
