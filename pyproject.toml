@@ -36,6 +36,8 @@ project_name = "AccountFlow"
 bundle = "com.andreafrattini"
 url = "https://github.com/andreafrattini/barflow"
 version = "1.0.0"
+author = "Andrea Frattini"
+author_email = "andreafrattini20@gmail.com"
 
 [tool.briefcase.app.barflow]
 formal_name = "AccountFlow - Gestione Finanziaria"
@@ -47,7 +49,7 @@ gestione dello storico transazioni."""
 sources = ["barflow"]
 main_module = "barflow.__main__"
 console_app = false
-resources = ["resources"]
+resources = ["barflow/resources"]
 
 requires = [
     "pyside6>=6.5.0",
@@ -63,15 +65,23 @@ requires = [
 
 # Configurazioni specifiche per Windows
 [tool.briefcase.app.barflow.windows]
-installer_type = "nsis"
-icon = "resources/icons/icon.ico"
+installer_type = "msi"
+icon = "barflow/resources/icons/icon.ico"
+license = "LICENSE"
+system_installer = true
+sign_tool = false
+
+[tool.briefcase.app.barflow.windows.msi]
+uuid = "12345678-1234-5678-9ABC-123456789ABC"
+upgrade_code = "87654321-4321-8765-CBA9-987654321ABC"
+install_scope = "perMachine"
 
 # Configurazioni specifiche per macOS  
 [tool.briefcase.app.barflow.macOS]
-bundle_identifier = "com.andreafrattini.barflow"
-icon = "resources/icons/icon.icns"
+bundle_identifier = "com.andreafrattini.accountflow"
+icon = "barflow/resources/icons/icon.icns"
 
 # Configurazioni specifiche per Linux
 [tool.briefcase.app.barflow.linux]
 system_requires = []
-icon = "resources/icons/icon.png"
+icon = "barflow/resources/icons/icon.png"

@@ -1,6 +1,6 @@
-# BarFlow - Gestione Finanziaria per Bar
+# AccountFlow - Gestione Finanziaria per Bar e Ristoranti
 
-**Versione 1.0.0** | **Stato: Pronta per Testing**
+**Versione 1.0.0** | **Stato: Pronta per Distribuzione**
 
 BarFlow è un'applicazione desktop sviluppata per aiutare i proprietari di bar e ristoranti a centralizzare, analizzare e ottenere insights dai propri dati finanziari. L'applicazione offre un'interfaccia utente moderna e intuitiva basata su PySide6, visualizzazioni interattive con Plotly, un database SQLite integrato per archiviare dati flessibili (tramite campi JSON) da diverse fonti (esportazioni POS, fatture digitali, inserimento manuale) e un motore di parsing intelligente (Pandas per Excel, lxml per XML) supportato da un wizard di mapping user-friendly.
 
