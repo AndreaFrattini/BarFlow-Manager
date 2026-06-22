@@ -43,16 +43,6 @@ pyinstaller>=5.13.0     # Packaging per distribuzione
 
 ## 📦 Installazione e Avvio
 
-### Distribuzione su iPad / iOS
-L'applicazione può essere preparata anche per dispositivi iPad tramite packaging iOS, ma la distribuzione reale su iPad non avviene come un semplice installer Windows.
-
-Per Apple, il percorso consigliato è uno di questi:
-- **TestFlight** per test interni o beta;
-- **App Store** per distribuzione pubblica;
-- **Distribuzione ad hoc** solo con provisioning Apple dedicato.
-
-Per preparare il build iOS locale, il progetto include ora una configurazione dedicata nel file [pyproject.toml](pyproject.toml) e uno script di supporto in [installer/build_ios.sh](installer/build_ios.sh).
-
 ### Metodo 1: Avvio Automatico con uv (Consigliato)
 1. **Installa uv** (se non già presente):
    ```bash
