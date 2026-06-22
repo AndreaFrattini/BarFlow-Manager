@@ -2,7 +2,7 @@
 
 **Versione 1.0.0** | **Stato: Pronta per Distribuzione**
 
-BarFlow è un'applicazione desktop sviluppata per aiutare i proprietari di bar e ristoranti a centralizzare, analizzare e ottenere insights dai propri dati finanziari. L'applicazione offre un'interfaccia utente moderna e intuitiva basata su PySide6, visualizzazioni interattive con Plotly, un database SQLite integrato per archiviare dati flessibili (tramite campi JSON) da diverse fonti (esportazioni POS, fatture digitali, inserimento manuale) e un motore di parsing intelligente (Pandas per Excel, lxml per XML) supportato da un wizard di mapping user-friendly.
+AccountFlow è un'applicazione desktop sviluppata per aiutare i proprietari di bar e ristoranti a centralizzare, analizzare e ottenere insights dai propri dati finanziari. L'applicazione offre un'interfaccia utente moderna e intuitiva basata su PySide6, visualizzazioni interattive con Plotly, un database SQLite integrato per archiviare dati flessibili (tramite campi JSON) da diverse fonti (esportazioni POS, fatture digitali, inserimento manuale) e un motore di parsing intelligente (Pandas per Excel, lxml per XML) supportato da un wizard di mapping user-friendly.
 
 ## 🚀 Caratteristiche Principali
 
@@ -43,6 +43,16 @@ pyinstaller>=5.13.0     # Packaging per distribuzione
 
 ## 📦 Installazione e Avvio
 
+### Distribuzione su iPad / iOS
+L'applicazione può essere preparata anche per dispositivi iPad tramite packaging iOS, ma la distribuzione reale su iPad non avviene come un semplice installer Windows.
+
+Per Apple, il percorso consigliato è uno di questi:
+- **TestFlight** per test interni o beta;
+- **App Store** per distribuzione pubblica;
+- **Distribuzione ad hoc** solo con provisioning Apple dedicato.
+
+Per preparare il build iOS locale, il progetto include ora una configurazione dedicata nel file [pyproject.toml](pyproject.toml) e uno script di supporto in [installer/build_ios.sh](installer/build_ios.sh).
+
 ### Metodo 1: Avvio Automatico con uv (Consigliato)
 1. **Installa uv** (se non già presente):
    ```bash
@@ -61,7 +71,7 @@ pyinstaller>=5.13.0     # Packaging per distribuzione
 ### Metodo 2: Avvio Manuale con uv
 ```bash
 # 1. Naviga nella cartella del progetto
-cd BarFlow-Manager
+cd AccountFlow
 
 # 2. Sincronizza dipendenze
 uv sync
@@ -76,7 +86,7 @@ uv run python main.py --sample-data
 ### Metodo 3: Installazione Manuale Python tradizionale
 ```bash
 # Se uv non è disponibile, usa Python tradizionale
-cd BarFlow-Manager
+cd AccountFlow
 
 # Crea ambiente virtuale
 python -m venv .venv
@@ -97,7 +107,7 @@ python main.py
 ## 💼 Struttura dell'Applicazione
 
 ```
-BarFlow-Manager/
+AccountFlow/
 ├── main.py                 # File principale per avviare l'applicazione
 ├── start_barflow.bat      # Script di avvio automatico per Windows
 ├── requirements.txt       # Dipendenze Python
@@ -160,37 +170,6 @@ BarFlow-Manager/
 - **Interfaccia adattabile**: Temi, dimensioni, preferenze
 - **Logging avanzato**: Per debugging e supporto
 
-## 🗃️ Schema Database
-
-### Tabella `transactions`
-- `transaction_id` (PRIMARY KEY)
-- `transaction_date` (DATE) - Data transazione
-- `description` (TEXT) - Descrizione
-- `amount` (DECIMAL) - Importo sempre positivo
-- `is_income` (BOOLEAN) - True=entrata, False=uscita
-- `category_id` (FK) - Riferimento categoria
-- `source_id` (FK) - Riferimento file import
-- `metadata_json` (TEXT) - Metadati aggiuntivi
-
-### Tabella `categories`
-- `category_id` (PRIMARY KEY)
-- `name` (TEXT) - Nome categoria
-- `is_cogs` (BOOLEAN) - Se è Cost of Goods Sold
-- Categorie predefinite: Bevande (COGS), Cibo (COGS), Personale
-
-### Tabella `source_profiles`
-- `profile_id` (PRIMARY KEY)
-- `name` (TEXT) - Nome profilo
-- `file_type` (TEXT) - xlsx, xml
-- `mapping_schema_json` (TEXT) - Schema mapping campi
-
-### Tabella `imported_sources`
-- `source_id` (PRIMARY KEY)
-- `filename` (TEXT) - Nome file originale
-- `file_hash` (TEXT) - Hash per rilevare duplicati
-- `granularity` (TEXT) - daily, weekly, monthly
-- `import_date` (TIMESTAMP)
-
 ## 🔒 Sicurezza e Privacy
 
 - **Dati locali**: Tutto rimane sul computer dell'utente
@@ -199,61 +178,14 @@ BarFlow-Manager/
 - **Validazione input**: Controlli rigorosi sui dati
 - **Log audit**: Tracciamento operazioni per debug
 
-## 🚀 Roadmap Futura
-
-### Versione 1.1 (Prossima)
-- [ ] Support file XML completo
-- [ ] Template POS predefiniti
-- [ ] Dashboard configurabile
-- [ ] Notifiche push
-- [ ] API REST per integrazioni
-
-### Versione 1.2
-- [ ] Multi-utente con ruoli
-- [ ] Sincronizzazione cloud
-- [ ] App mobile companion
-- [ ] AI per categorizzazione automatica
-- [ ] Plugin system
-
-### Versione 2.0
-- [ ] Multi-location
-- [ ] Inventory management
-- [ ] Staff management
-- [ ] Advanced analytics con ML
-- [ ] Integrazione contabilità
-
-## 🐛 Testing e Debugging
-
-### Creazione Dati di Test
-```bash
-# Crea 50 transazioni di esempio
-python main.py --sample-data
-```
-
 ### Log e Debugging
-- Log salvati in: `%LOCALAPPDATA%\BarFlow\logs\`
-- Database in: `%LOCALAPPDATA%\BarFlow\barflow.db`
-- Configurazioni: `%LOCALAPPDATA%\BarFlow\config.json`
-
-## 📞 Supporto e Contributi
-
-### Segnalazione Bug
-1. Riprodurre il problema
-2. Raccogliere log da `%LOCALAPPDATA%\BarFlow\logs\`
-3. Creare issue con:
-   - Descrizione dettagliata
-   - Steps per riprodurre
-   - File log allegati
-   - Screenshot se applicabile
-
-### Richieste Feature
-- Aprire issue con tag "enhancement"
-- Descrivere caso d'uso specifico
-- Fornire mockup se disponibili
+- Log salvati in: `%LOCALAPPDATA%\AccountFlow\logs\`
+- Database in: `%LOCALAPPDATA%\AccountFlow\barflow.db`
+- Configurazioni: `%LOCALAPPDATA%\AccountFlow\config.json`
 
 ## 📄 Licenza e Credits
 
-**Autore**: Andrea Frattini & BarFlow Team  
+**Autore**: AccountFlow Team  
 **Versione**: 1.0.0  
 **Data**: Ottobre 2025  
 **Licenza**: Proprietaria  
@@ -267,6 +199,6 @@ python main.py --sample-data
 
 ---
 
-**🎉 BarFlow è pronto per essere testato e utilizzato in ambiente di produzione!**
+**🎉 AccountFlow è pronto per essere testato e utilizzato in ambiente di produzione!**
 
 Per domande o supporto, contattare il team di sviluppo.
